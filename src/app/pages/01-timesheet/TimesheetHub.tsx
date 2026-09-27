@@ -2221,7 +2221,7 @@ export function TimesheetHub() {
                       </div>
 
                       {/* Quick Sync & Reload Actions */}
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
+                      <div className="grid grid-cols-2 gap-1.5">
                         <button
                           type="button"
                           disabled={isSyncing}

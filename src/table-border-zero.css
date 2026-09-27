@@ -218,17 +218,28 @@ html body #root :is(
     box-shadow: none !important;
   }
 
-  /* For every non-Trial table, the frame supplies the left/right perimeter.
-     Cells retain only separators between columns. Trial Balance is explicitly
-     excluded so ded5f18's NOTE divider/sticky-header design is unchanged. */
+  /* For every non-Trial table, the frame supplies the true outer perimeter.
+     Body/footer rows can safely use DOM first/last-child as their physical
+     edges. Grouped header rows cannot: rowSpan cells from row 1 mean the first
+     or last DOM cell in row 2 can still be an INTERNAL divider (for example
+     MOTH01 immediately before Total Hours). Keep that divider unless row 1
+     proves the grouped row really reaches the outer edge. */
   html body #root :is(
     .unified-table-frame:not(.trial-balance-frame),
     .data-table-wrapper,
     .audit-data-table-wrapper
   ) table:not(.trial-balance-table)
-    > :is(thead, tbody, tfoot)
+    > :is(tbody, tfoot)
     > tr
-    > :is(th, td):first-child {
+    > :is(th, td):first-child,
+  html body #root :is(
+    .unified-table-frame:not(.trial-balance-frame),
+    .data-table-wrapper,
+    .audit-data-table-wrapper
+  ) table:not(.trial-balance-table)
+    > thead
+    > tr:first-child
+    > th:first-child {
     border-left: 0 !important;
   }
 
@@ -237,10 +248,68 @@ html body #root :is(
     .data-table-wrapper,
     .audit-data-table-wrapper
   ) table:not(.trial-balance-table)
-    > :is(thead, tbody, tfoot)
+    > :is(tbody, tfoot)
     > tr
-    > :is(th, td):last-child {
+    > :is(th, td):last-child,
+  html body #root :is(
+    .unified-table-frame:not(.trial-balance-frame),
+    .data-table-wrapper,
+    .audit-data-table-wrapper
+  ) table:not(.trial-balance-table)
+    > thead
+    > tr:first-child
+    > th:last-child {
     border-right: 0 !important;
+  }
+
+  /* If the first grouped header row ends at the frame itself (no rowSpan cell
+     owns that edge), later header rows also give that OUTER edge to the frame.
+     When a rowSpan cell exists at the edge, later-row first/last cells remain
+     internal and keep their separator. This prevents missing MOTH01-style
+     dividers without creating a doubled frame line. */
+  html body #root :is(
+    .unified-table-frame:not(.trial-balance-frame),
+    .data-table-wrapper,
+    .audit-data-table-wrapper
+  ) table:not(.trial-balance-table)
+    > thead:has(> tr:first-child > th:first-child:not([rowspan]))
+    > tr:nth-child(n + 2)
+    > th:first-child {
+    border-left: 0 !important;
+  }
+
+  html body #root :is(
+    .unified-table-frame:not(.trial-balance-frame),
+    .data-table-wrapper,
+    .audit-data-table-wrapper
+  ) table:not(.trial-balance-table)
+    > thead:has(> tr:first-child > th:last-child:not([rowspan]))
+    > tr:nth-child(n + 2)
+    > th:last-child {
+    border-right: 0 !important;
+  }
+
+  /* The column-header top seam also has exactly one owner. If a DataTable bar
+     (BU filter / selection / overlap notice) sits immediately above the scroll
+     region, that bar gives up its bottom edge and the first header row draws
+     the single seam. If the table body is the first child, the frame remains
+     the sole top perimeter and no extra cell border is added. */
+  html body #root :is(.data-table-wrapper, .audit-data-table-wrapper)
+    > :not(.table-body-region):has(+ .table-body-region) {
+    border-bottom-width: 0 !important;
+  }
+
+  html body #root :is(.data-table-wrapper, .audit-data-table-wrapper)
+    > :not(.table-body-region)
+    + .table-body-region
+    table:not(.trial-balance-table)
+    > thead
+    > tr:first-child
+    > th {
+    border-top: 1px solid var(
+      --table-border-color,
+      var(--grid-line-color, var(--border, #cbd5e1))
+    ) !important;
   }
 
   /* Section bars keep only their inward-facing seam. No side/top/bottom edge
