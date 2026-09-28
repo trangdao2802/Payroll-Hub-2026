@@ -47,11 +47,11 @@ test("table switchers use unique icons and Timesheet summary captions share one 
   );
 
   const centersBlock =
-    navbar.match(/"\\/centers": \\[([\\s\\S]*?)\\],\\n  "\\/audit"/)?.[1] || "";
+    navbar.match(/"\/centers": \[([\s\S]*?)\],\n  "\/audit"/)?.[1] || "";
   const masterBlock =
-    navbar.match(/"\\/master-ae": \\[([\\s\\S]*?)\\],\\n};/)?.[1] || "";
+    navbar.match(/"\/master-ae": \[([\s\S]*?)\],\n};/)?.[1] || "";
   const iconsOf = (block: string) =>
-    Array.from(block.matchAll(/icon:\\s*(\\w+)/g), (match) => match[1]);
+    Array.from(block.matchAll(/icon:\s*(\w+)/g), (match) => match[1]);
 
   const centerIcons = iconsOf(centersBlock);
   const masterIcons = iconsOf(masterBlock);
@@ -61,9 +61,9 @@ test("table switchers use unique icons and Timesheet summary captions share one 
   assert.equal(new Set(masterIcons).size, masterIcons.length);
 
   assert.match(timesheet, /Pivot Timesheet", icon: FileSpreadsheet/);
-  assert.match(coverage, />CENTER<\\/span>/);
+  assert.match(coverage, />CENTER<\/span>/);
   assert.match(
     coverage,
-    /bg-card px-2\\.5 py-0\\.5 rounded-md border border-border\\/60 shadow-2xs/,
+    /bg-card px-2\.5 py-0\.5 rounded-md border border-border\/60 shadow-2xs/,
   );
 });
