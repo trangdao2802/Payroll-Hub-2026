@@ -11,10 +11,12 @@ export function TimesheetCenterCount({ coverage }: { coverage: MissingTimesheetC
     : "Không có Center cần đồng bộ; bỏ qua Center đã đồng bộ thành công hoặc chỉ có dữ liệu ngoài thời gian đang lọc";
   return (
     <div className="flex flex-col items-end" title={description} aria-label={description} role="status">
-      <span className="text-[9px] font-bold text-foreground/60 tracking-tighter whitespace-nowrap">Center:</span>
-      <span className={`text-xs font-black tabular-nums ${coverage.centers.length ? "text-destructive" : "text-foreground"}`}>
-        {coverage.centers.length.toLocaleString("vi-VN")}
-      </span>
+      <span className="text-[9px] font-bold text-foreground/60 uppercase tracking-tighter whitespace-nowrap">CENTER</span>
+      <div className="bg-card px-2.5 py-0.5 rounded-md border border-border/60 shadow-2xs min-w-[34px] text-center">
+        <span className={`text-xs font-black tabular-nums ${coverage.centers.length ? "text-destructive" : "text-foreground"}`}>
+          {coverage.centers.length.toLocaleString("vi-VN")}
+        </span>
+      </div>
     </div>
   );
 }

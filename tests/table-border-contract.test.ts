@@ -34,3 +34,19 @@ test("grouped table headers preserve internal dividers without doubling the fram
     /\+ \.table-body-region[\s\S]*> thead[\s\S]*> tr:first-child[\s\S]*> th \{[\s\S]*border-top: 1px solid var\(/,
   );
 });
+
+
+test("grand-total rows visually seal the horizontal scrollbar gutter", () => {
+  const styles = readSource("src/index.css");
+
+  assert.ok(
+    styles.includes(
+      ":is(.table-body-region, .custom-scrollbar, .overflow-auto, .overflow-x-auto):has(tfoot)::-webkit-scrollbar-track:horizontal",
+    ),
+  );
+  assert.ok(
+    styles.includes(
+      "background: var(--table-footer-scrollbar-bg) !important;",
+    ),
+  );
+});

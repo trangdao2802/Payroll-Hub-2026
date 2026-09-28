@@ -56,7 +56,7 @@ const pageTabs: Record<string, { id: string; label: string; icon: React.ElementT
   "/centers": [
     { id: "employee", label: "Total Hours", icon: Users },
     { id: "center", label: "Roster Center", icon: Building2 },
-    { id: "mkt_local_north", label: "Pivot Timesheet", icon: FileText },
+    { id: "mkt_local_north", label: "Pivot Timesheet", icon: Table2 },
     { id: "roster_raw", label: "Raw Data", icon: FileText },
     { id: "type_rates", label: "Rate Type", icon: Coins },
     { id: "upload", label: "Setting Timesheet", icon: UploadCloud },
@@ -67,10 +67,10 @@ const pageTabs: Record<string, { id: string; label: string; icon: React.ElementT
     { id: "rules", label: "Allowed Rules", icon: ListChecks },
   ],
   "/master-ae": [
-    { id: "Sheet1_AE", label: "Gross Pay", icon: Database },
-    { id: "Hold_AE", label: "Deductions", icon: Database },
+    { id: "Sheet1_AE", label: "Gross Pay", icon: CircleDollarSign },
+    { id: "Hold_AE", label: "Deductions", icon: CreditCard },
     { id: "BulkPayment", label: "Bulk Payment", icon: Wallet },
-    { id: "Pivot", label: "Pivot Master", icon: FileText },
+    { id: "Pivot", label: "Pivot Master", icon: Table2 },
     { id: "upload", label: "Setting Master", icon: UploadCloud },
   ],
 };

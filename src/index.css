@@ -915,6 +915,22 @@
     background-color: var(--primary);
   }
 
+  /*
+   * Keep every sticky grand-total row visually attached to its horizontal
+   * scrollbar gutter. The scrollbar remains fully usable; only the exposed
+   * track/corner below TỔNG CỘNG inherits the same opaque footer background,
+   * removing the white gap visible across wide tables.
+   */
+  :is(.table-body-region, .custom-scrollbar, .overflow-auto, .overflow-x-auto):has(tfoot) {
+    --table-footer-scrollbar-bg: var(--table-column-header-bg, #F4ECD8);
+  }
+
+  :is(.table-body-region, .custom-scrollbar, .overflow-auto, .overflow-x-auto):has(tfoot)::-webkit-scrollbar-track:horizontal,
+  :is(.table-body-region, .custom-scrollbar, .overflow-auto, .overflow-x-auto):has(tfoot)::-webkit-scrollbar-corner {
+    background: var(--table-footer-scrollbar-bg) !important;
+    border-radius: 0 !important;
+  }
+
   /* Compatibility Fixes for older Safari/iOS */
   input,
   select,

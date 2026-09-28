@@ -841,7 +841,7 @@ export function TimesheetHub() {
       [
         { id: "employee", label: "Total Paid Hours", icon: Users },
         { id: "center", label: "Roster Center", icon: Building2 },
-        { id: "mkt_local_north", label: "Pivot Timesheet", icon: FileText },
+        { id: "mkt_local_north", label: "Pivot Timesheet", icon: FileSpreadsheet },
         { id: "roster_raw", label: "Raw Data", icon: FileText },
         { id: "type_rates", label: "Unit Rate Type", icon: Coins },
       ] as const,
