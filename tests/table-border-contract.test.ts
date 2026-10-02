@@ -50,3 +50,17 @@ test("grand-total rows visually seal the horizontal scrollbar gutter", () => {
     ),
   );
 });
+
+test("table containers and frames enforce zero border radius and sealed sticky total rows", () => {
+  const styles = readSource("src/table-border-zero.css");
+
+  assert.match(
+    styles,
+    /\.analysis-table-frame[\s\S]*border-radius:\s*0px\s*!important;/,
+  );
+  assert.match(
+    styles,
+    /:is\(tfoot,\s*\.total-row\)[\s\S]*position:\s*sticky\s*!important;[\s\S]*bottom:\s*0\s*!important;[\s\S]*background-color:/,
+  );
+});
+

@@ -34,6 +34,7 @@ import { createClearedWebData } from "../lib/utils/data-clear-scopes";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { clearSupabaseRosterData } from "../lib/supabase-sync-utils";
 import { ThemePreviewCard } from "./ThemePreviewCard";
+import { TableInitialMark, TableTitleRemainder } from "./TableInitialMark";
 import {
   type UiSettings,
   defaultSettings,
@@ -48,6 +49,8 @@ import {
   colorToHex7,
   isSafeCustomSelector,
   normalizeCssLength,
+  TITLE_FONT_OPTIONS,
+  resolveTitleFontStack,
 } from "../lib/ui-settings";
 
 // Helper utilities for parsing CSS shorthand paddings/margins
@@ -1385,6 +1388,45 @@ export function UiSettingsModal({
                     </select>
                   </div>
 
+                  {/* Font chữ Tiêu đề Bảng + tích Thay đổi cả chữ cái đầu */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-200/80">
+                    <label className="font-bold text-[0.8125rem] text-slate-800">
+                      Font chữ Tiêu đề Bảng (Table Title Font)
+                    </label>
+                    <select
+                      value={settings.titleFont || "Voyage"}
+                      onChange={(e) =>
+                        setSettings({ ...settings, titleFont: e.target.value })
+                      }
+                      className="w-full border-2 border-primary rounded-lg p-2 font-bold text-sm outline-none focus:shadow-hard-sm transition-all bg-white text-primary cursor-pointer"
+                    >
+                      {TITLE_FONT_OPTIONS.map((fontOpt) => (
+                        <option key={fontOpt.id} value={fontOpt.id}>
+                          {fontOpt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none mt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(settings.titleFontIncludeInitial)}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            titleFontIncludeInitial: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-primary accent-primary cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-800">
+                        Thay đổi cả chữ cái đầu
+                      </span>
+                    </label>
+                    <p className="text-[10px] font-medium text-slate-500">
+                      Mặc định (không tích): chỉ thay đổi phần chữ phía sau chữ cái đầu của tiêu đề bảng. Khi tích chọn: áp dụng font mới cho cả chữ cái đầu và phần chữ theo sau.
+                    </p>
+                  </div>
+
                   <div className="flex flex-col gap-1 mt-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="table-font-size" className="font-bold text-[0.8125rem]">
@@ -1892,6 +1934,90 @@ export function UiSettingsModal({
                       <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
                         * Chọn giao diện mẫu sẽ đồng bộ bảng màu, phông chữ và bo góc chuẩn Taste-Skill.
                       </p>
+                    </div>
+
+                    {/* Tuỳ chỉnh Font chữ Tiêu đề Bảng ngay trong mục 1 */}
+                    <div className="flex flex-col gap-2 rounded-lg border border-primary/15 bg-slate-50/70 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <label
+                          htmlFor="title-font-select"
+                          className="font-bold text-[0.8125rem] text-primary flex items-center gap-1.5"
+                        >
+                          <Type className="w-3.5 h-3.5 text-accent" />
+                          Font chữ Tiêu đề Bảng (Table Title Font):
+                        </label>
+                        <span className="text-[10px] font-mono text-slate-500">
+                          {settings.titleFontIncludeInitial
+                            ? "Cả chữ cái đầu + phần sau"
+                            : "Mặc định: Phần chữ sau chữ cái đầu"}
+                        </span>
+                      </div>
+
+                      <select
+                        id="title-font-select"
+                        value={settings.titleFont || "Voyage"}
+                        onChange={(e) =>
+                          setSettings({ ...settings, titleFont: e.target.value })
+                        }
+                        className="w-full border-2 border-primary rounded-lg p-2 font-bold text-xs sm:text-sm outline-none focus:shadow-hard-sm transition-all bg-white text-primary cursor-pointer"
+                      >
+                        {TITLE_FONT_OPTIONS.map((fontOpt) => (
+                          <option key={fontOpt.id} value={fontOpt.id}>
+                            {fontOpt.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label
+                        htmlFor="title-font-include-initial"
+                        className="inline-flex items-center gap-2 cursor-pointer select-none pt-0.5"
+                      >
+                        <input
+                          id="title-font-include-initial"
+                          type="checkbox"
+                          checked={Boolean(settings.titleFontIncludeInitial)}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              titleFontIncludeInitial: e.target.checked,
+                            })
+                          }
+                          className="h-4 w-4 rounded border-primary accent-primary cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-primary">
+                          Thay đổi cả chữ cái đầu
+                        </span>
+                      </label>
+
+                      <div className="mt-1 flex items-center justify-between rounded-md border border-primary/15 bg-white px-3 py-2">
+                        <div
+                          className={`app-table-title-line ${
+                            settings.titleFontIncludeInitial
+                              ? "app-table-title-line--font-mode"
+                              : ""
+                          }`}
+                          style={
+                            {
+                              "--font-table-title": resolveTitleFontStack(
+                                settings.titleFont
+                              ),
+                            } as React.CSSProperties
+                          }
+                        >
+                          <TableInitialMark
+                            label="EMPLOYEE WORKING HOURS SUMMARY"
+                            className={
+                              settings.titleFontIncludeInitial
+                                ? "app-table-initial-mark--font-mode"
+                                : ""
+                            }
+                          />
+                          <TableTitleRemainder label="EMPLOYEE WORKING HOURS SUMMARY" />
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-500 shrink-0 ml-2">
+                          Xem trước tiêu đề
+                        </span>
+                      </div>
                     </div>
 
                     {/* Live Theme & Table Preview Card */}

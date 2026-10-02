@@ -9,6 +9,64 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Tanamera";
+  src: url("/fonts/TANAMERA.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Grandstand";
+  src: url("/fonts/GRANDSTAND.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roulen Atelier";
+  src: url("/fonts/ROULEN%20ATELIER-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Anthelion";
+  src: url("/fonts/Anthelion.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noradya";
+  src: url("/fonts/Noradya.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Athene Voyage";
+  src:
+    url("/fonts/Athene%20Voyage.otf") format("opentype"),
+    url("/fonts/Athene%20Voyage.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Modak";
+  src: url("/fonts/Modak-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 .ui-inspector-selected {
   outline: 3px solid #78a6ff !important;
   outline-offset: 2px !important;
@@ -153,6 +211,7 @@
   display: inline-block;
   color: var(--primary, #8E4A49) !important;
   font-family: "Voyage", "Be Vietnam Pro", Georgia, serif !important;
+  font-family: var(--font-table-title, "Voyage", "Be Vietnam Pro", Georgia, serif) !important;
   font-size: 17px !important;
   font-weight: 400 !important;
   letter-spacing: -0.025em;
@@ -165,6 +224,47 @@
   padding-left: 0px !important;
   text-align: left;
   transform: none !important;
+}
+
+html[data-title-font-include-initial="true"] .app-table-initial-mark,
+html[data-title-font-include-initial="true"] #trial-balance-summary #trial-balance-title .app-table-initial-mark,
+html[data-title-font-include-initial="true"] #trial-balance-summary .trial-balance-title .app-table-initial-mark,
+.app-table-initial-mark--font-mode {
+  width: auto !important;
+  height: auto !important;
+  line-height: 1.35 !important;
+}
+
+html[data-title-font-include-initial="true"] .app-table-initial-mark__glyph,
+html[data-title-font-include-initial="true"] .table-initial-toggle[aria-expanded="false"] .app-table-initial-mark__glyph,
+html[data-title-font-include-initial="true"] #trial-balance-summary #trial-balance-title .app-table-initial-mark__glyph,
+html[data-title-font-include-initial="true"] #trial-balance-summary .trial-balance-title .app-table-initial-mark__glyph,
+.app-table-initial-mark--font-mode .app-table-initial-mark__glyph {
+  width: auto !important;
+  height: auto !important;
+  line-height: 1.35 !important;
+  color: var(--table-initial-color, var(--primary, #8E4A49)) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  font-family: var(--font-table-title, "Voyage", "Be Vietnam Pro", Georgia, serif) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.025em !important;
+  text-transform: uppercase !important;
+  filter: none !important;
+}
+
+html[data-title-font-include-initial="true"] .app-table-initial-mark__glyph:empty::before,
+.app-table-initial-mark--font-mode .app-table-initial-mark__glyph:empty::before {
+  content: attr(data-glyph);
+}
+
+html[data-title-font-include-initial="true"] .app-table-title-line,
+html[data-title-font-include-initial="true"] #trial-balance-summary #trial-balance-title,
+html[data-title-font-include-initial="true"] #trial-balance-summary .trial-balance-title,
+.app-table-title-line--font-mode {
+  gap: 0px !important;
 }
 
 .app-table-title-remainder--expanded {
@@ -259,6 +359,7 @@
 .navbar-current-label {
   color: var(--primary, #8E4A49) !important;
   font-family: "Voyage", "Be Vietnam Pro", Georgia, serif !important;
+  font-family: var(--font-table-title, "Voyage", "Be Vietnam Pro", Georgia, serif) !important;
 
   font-weight: 400 !important;
   line-height: 1.35 !important;
@@ -4222,6 +4323,105 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-
   --table-column-header-bg: #F5AEC1;
   --table-column-header-text-color: #351B26;
   --table-column-header-text: #351B26;
+  --table-data-bg: #FFFFFF;
+}
+
+[data-theme="opal-walnut"] {
+  --bg: #FFFBFA;
+  --surface: #FFFFFF;
+  --ink: #3A3437;
+  --ink-muted: #6C6C6A;
+  --accent: #6C6C6A;
+  --accent-soft: #F4E8EE;
+  --border: #DEE5ED;
+  --background: #FFFBFA;
+  --foreground: #3A3437;
+  --card: #FFFFFF;
+  --card-foreground: #3A3437;
+  --primary: #6C6C6A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E8CCD7;
+  --secondary-foreground: #3A3437;
+  --accent-foreground: #FFFFFF;
+  --popover: #FFFFFF;
+  --popover-foreground: #3A3437;
+  --muted: #DEE5ED;
+  --muted-foreground: #6C6C6A;
+  --table-grid-color: #DEE5ED;
+  --grid-line-color: rgba(108, 108, 106, 0.14);
+  --table-border-color: #DEE5ED;
+  --table-header-bg: #DEE5ED;
+  --table-sub-header-bg: #FAF2F5;
+  --table-footer-bg: #DEE5ED;
+  --table-column-header-bg: #E8CCD7;
+  --table-column-header-text-color: #3A3437;
+  --table-column-header-text: #3A3437;
+  --table-data-bg: #FFFFFF;
+}
+
+[data-theme="pastel-cocoa"] {
+  --bg: #FFFBFA;
+  --surface: #FFFFFF;
+  --ink: #3D2E35;
+  --ink-muted: #6C6C6A;
+  --accent: #6C6C6A;
+  --accent-soft: #FAF2F5;
+  --border: #E8CCD7;
+  --background: #FFFBFA;
+  --foreground: #3D2E35;
+  --card: #FFFFFF;
+  --card-foreground: #3D2E35;
+  --primary: #6C6C6A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #DEE5ED;
+  --secondary-foreground: #3D2E35;
+  --accent-foreground: #FFFFFF;
+  --popover: #FFFFFF;
+  --popover-foreground: #3D2E35;
+  --muted: #FAF2F5;
+  --muted-foreground: #6C6C6A;
+  --table-grid-color: #E8CCD7;
+  --grid-line-color: rgba(108, 108, 106, 0.13);
+  --table-border-color: #E8CCD7;
+  --table-header-bg: #E8CCD7;
+  --table-sub-header-bg: #EEF3F8;
+  --table-footer-bg: #E8CCD7;
+  --table-column-header-bg: #DEE5ED;
+  --table-column-header-text-color: #3A3437;
+  --table-column-header-text: #3A3437;
+  --table-data-bg: #FFFFFF;
+}
+
+[data-theme="pastel-powder"] {
+  --bg: #F7FAFD;
+  --surface: #FFFFFF;
+  --ink: #2C333A;
+  --ink-muted: #6C6C6A;
+  --accent: #6C6C6A;
+  --accent-soft: #EFF4F8;
+  --border: #CBD6E2;
+  --background: #F7FAFD;
+  --foreground: #2C333A;
+  --card: #FFFFFF;
+  --card-foreground: #2C333A;
+  --primary: #6C6C6A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E8CCD7;
+  --secondary-foreground: #2C333A;
+  --accent-foreground: #FFFFFF;
+  --popover: #FFFFFF;
+  --popover-foreground: #2C333A;
+  --muted: #DEE5ED;
+  --muted-foreground: #6C6C6A;
+  --table-grid-color: #CBD6E2;
+  --grid-line-color: rgba(108, 108, 106, 0.13);
+  --table-border-color: #CBD6E2;
+  --table-header-bg: #DEE5ED;
+  --table-sub-header-bg: #FAF2F5;
+  --table-footer-bg: #DEE5ED;
+  --table-column-header-bg: #E8CCD7;
+  --table-column-header-text-color: #3A3437;
+  --table-column-header-text: #3A3437;
   --table-data-bg: #FFFFFF;
 }
 

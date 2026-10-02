@@ -10,10 +10,10 @@ export function ThemeSwitcher() {
       return (
         document.documentElement.getAttribute("data-theme") ||
         localStorage.getItem("app-theme") ||
-        "dream-state"
+        "opal-garden"
       );
     }
-    return "dream-state";
+    return "opal-garden";
   });
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export function ThemeSwitcher() {
       const theme =
         document.documentElement.getAttribute("data-theme") ||
         localStorage.getItem("app-theme") ||
-        "dream-state";
+        "opal-garden";
       setCurrentTheme(theme);
     };
 

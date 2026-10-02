@@ -54,6 +54,8 @@ export interface UiSettings {
   customRules?: CustomRule[];
   titleAlign: string;
   tableFont?: string;
+  titleFont?: string;
+  titleFontIncludeInitial?: boolean;
   autoSave?: boolean;
   showHelp?: boolean;
   stripeColor1?: string;
@@ -96,88 +98,198 @@ export interface TastePreset {
   tableRadius: string;
 }
 
+export interface TitleFontOption {
+  id: string;
+  label: string;
+  fontFamily: string;
+  fileName: string;
+}
+
+export const TITLE_FONT_OPTIONS: TitleFontOption[] = [
+  {
+    id: "Voyage",
+    label: "Voyage (Mặc định · Voyage.otf)",
+    fontFamily: '"Voyage", "Be Vietnam Pro", Georgia, serif',
+    fileName: "Voyage.otf",
+  },
+  {
+    id: "Tanamera",
+    label: "Tanamera (TANAMERA.otf)",
+    fontFamily: '"Tanamera", "Voyage", "Be Vietnam Pro", Georgia, serif',
+    fileName: "TANAMERA.otf",
+  },
+  {
+    id: "Grandstand",
+    label: "Grandstand (GRANDSTAND.ttf)",
+    fontFamily: '"Grandstand", "Voyage", "Be Vietnam Pro", Georgia, serif',
+    fileName: "GRANDSTAND.ttf",
+  },
+  {
+    id: "Roulen Atelier",
+    label: "Roulen Atelier (ROULEN ATELIER-Regular.ttf)",
+    fontFamily: '"Roulen Atelier", "Voyage", "Be Vietnam Pro", Georgia, serif',
+    fileName: "ROULEN ATELIER-Regular.ttf",
+  },
+  {
+    id: "Anthelion",
+    label: "Anthelion (Anthelion.ttf)",
+    fontFamily: '"Anthelion", "Voyage", "Be Vietnam Pro", Georgia, serif',
+    fileName: "Anthelion.ttf",
+  },
+  {
+    id: "Noradya",
+    label: "Noradya (Noradya.ttf)",
+    fontFamily: '"Noradya", "Voyage", "Be Vietnam Pro", Georgia, serif',
+    fileName: "Noradya.ttf",
+  },
+  {
+    id: "Athene Voyage",
+    label: "Athene Voyage (Athene Voyage.otf / .ttf)",
+    fontFamily: '"Athene Voyage", "Voyage", "Be Vietnam Pro", Georgia, serif',
+    fileName: "Athene Voyage.otf",
+  },
+  {
+    id: "Modak",
+    label: "Modak (Modak-Regular.ttf)",
+    fontFamily: '"Modak", "Be Vietnam Pro", cursive',
+    fileName: "Modak-Regular.ttf",
+  },
+];
+
+export function resolveTitleFontStack(titleFont?: string): string {
+  if (!titleFont) return TITLE_FONT_OPTIONS[0].fontFamily;
+  const trimmed = titleFont.trim();
+  const matched = TITLE_FONT_OPTIONS.find(
+    (opt) =>
+      opt.id.toLowerCase() === trimmed.toLowerCase() ||
+      opt.fontFamily.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (matched) return matched.fontFamily;
+  return trimmed;
+}
+
 export const CURATED_PRESET_IDS = [
-  "breeze-blue",
-  "dream-state",
-  "espresso-blush",
-  "systematic",
+  "opal-garden",
+  "opal-walnut",
+  "dido-dreamcore",
+  "pastel-cocoa",
+  "pastel-blossom",
+  "pastel-powder",
 ] as const;
 
 export type CuratedPresetId = (typeof CURATED_PRESET_IDS)[number];
 
 export const TASTE_PRESETS: Record<string, TastePreset> = {
-  "breeze-blue": {
-    id: "breeze-blue",
-    name: "Xanh Băng · Breeze & Butter (Bardak)",
-    bg: "#FAF7F2",
-    accent: "#CC7C6B",
-    text: "#3D2A2A",
-    border: "#BACDD8",
+  "opal-garden": {
+    id: "opal-garden",
+    name: "Opal Works · Dusty Petal & Antique Linen (#C4A7A7 · #D6CEC4)",
+    bg: "#F6F3EE",
+    accent: "#4A3424",
+    text: "#4A3424",
+    border: "#D6CEC4",
     stripeColor1: "#FFFFFF",
-    stripeColor2: "#F0F5EC",
-    gridLineColor: "rgba(61, 42, 42, 0.10)",
-    tableHeaderBg: "#C6D6E7",
-    tableSubHeaderBg: "#FAF4E8",
-    tableFooterBg: "#C6D6E7",
-    tableColumnHeaderBg: "#FBE8B9",
-    tableColumnHeaderTextColor: "#3D2A2A",
+    stripeColor2: "#F3ECEC",
+    gridLineColor: "rgba(74, 52, 36, 0.13)",
+    tableHeaderBg: "#C4A7A7",
+    tableSubHeaderBg: "#F3EFEA",
+    tableFooterBg: "#C4A7A7",
+    tableColumnHeaderBg: "#D6CEC4",
+    tableColumnHeaderTextColor: "#4A3424",
     tableDataBg: "#FFFFFF",
     tableFont: "var(--font-main)",
     tableRadius: "0px",
   },
-  "dream-state": {
-    id: "dream-state",
-    name: "Dream State · Matcha & Blush (Soft Trio)",
-    bg: "#FAF8F5",
-    accent: "#456449",
-    text: "#243026",
-    border: "#C8D7C9",
+  "opal-walnut": {
+    id: "opal-walnut",
+    name: "Opal Works · Dim Gray & Azureish White (#6C6C6A · #DEE5ED)",
+    bg: "#FFFBFA",
+    accent: "#6C6C6A",
+    text: "#3A3437",
+    border: "#DEE5ED",
     stripeColor1: "#FFFFFF",
-    stripeColor2: "#F2F7FA",
-    gridLineColor: "rgba(69, 100, 73, 0.12)",
-    tableHeaderBg: "#CFDABD",
-    tableSubHeaderBg: "#FAF1F4",
-    tableFooterBg: "#CFDABD",
-    tableColumnHeaderBg: "#F0CCCE",
-    tableColumnHeaderTextColor: "#243026",
+    stripeColor2: "#F4F7FA",
+    gridLineColor: "rgba(108, 108, 106, 0.14)",
+    tableHeaderBg: "#DEE5ED",
+    tableSubHeaderBg: "#FAF2F5",
+    tableFooterBg: "#DEE5ED",
+    tableColumnHeaderBg: "#E8CCD7",
+    tableColumnHeaderTextColor: "#3A3437",
     tableDataBg: "#FFFFFF",
     tableFont: "var(--font-main)",
     tableRadius: "0px",
   },
-  "espresso-blush": {
-    id: "espresso-blush",
-    name: "Espresso Blush · Moonpetal & Velvet",
-    bg: "#FBF9F9",
-    accent: "#8E3A59",
-    text: "#2D1D24",
-    border: "#C2D3DF",
+  "dido-dreamcore": {
+    id: "dido-dreamcore",
+    name: "Dido Market · Dreamcore Mist, Peach & Mint (梦核)",
+    bg: "#F7F3E8",
+    accent: "#8C5854",
+    text: "#4A332D",
+    border: "#CFD6EA",
     stripeColor1: "#FFFFFF",
-    stripeColor2: "#F7EEF2",
-    gridLineColor: "rgba(142, 58, 89, 0.12)",
-    tableHeaderBg: "#B5CEE4",
-    tableSubHeaderBg: "#FDF5F7",
-    tableFooterBg: "#B5CEE4",
-    tableColumnHeaderBg: "#F5AEC1",
-    tableColumnHeaderTextColor: "#351B26",
+    stripeColor2: "#F5EFEA",
+    gridLineColor: "rgba(140, 88, 84, 0.13)",
+    tableHeaderBg: "#CFD6EA",
+    tableSubHeaderBg: "#EAF7F3",
+    tableFooterBg: "#CFD6EA",
+    tableColumnHeaderBg: "#E5B8A8",
+    tableColumnHeaderTextColor: "#4A332D",
     tableDataBg: "#FFFFFF",
     tableFont: "var(--font-main)",
     tableRadius: "0px",
   },
-  systematic: {
-    id: "systematic",
-    name: "Autumn Palette · Sage & Dusty Petal (Secret Garden)",
-    bg: "#F7F4EF",
-    accent: "#543D2B",
-    text: "#34251B",
-    border: "#CDC3B8",
+  "pastel-cocoa": {
+    id: "pastel-cocoa",
+    name: "Pastel Cocoa · Queen Pink & Floral White (#E8CCD7 · #FFFBFA)",
+    bg: "#FFFBFA",
+    accent: "#6C6C6A",
+    text: "#3D2E35",
+    border: "#E8CCD7",
     stripeColor1: "#FFFFFF",
-    stripeColor2: "#F1ECE4",
-    gridLineColor: "rgba(84, 61, 43, 0.14)",
-    tableHeaderBg: "#A9B6A2",
-    tableSubHeaderBg: "#F3EFE9",
-    tableFooterBg: "#A9B6A2",
-    tableColumnHeaderBg: "#D4BDB8",
-    tableColumnHeaderTextColor: "#34251B",
+    stripeColor2: "#FAF2F5",
+    gridLineColor: "rgba(108, 108, 106, 0.13)",
+    tableHeaderBg: "#E8CCD7",
+    tableSubHeaderBg: "#EEF3F8",
+    tableFooterBg: "#E8CCD7",
+    tableColumnHeaderBg: "#DEE5ED",
+    tableColumnHeaderTextColor: "#3A3437",
+    tableDataBg: "#FFFFFF",
+    tableFont: "var(--font-main)",
+    tableRadius: "0px",
+  },
+  "pastel-blossom": {
+    id: "pastel-blossom",
+    name: "Pastel Blossom · Pink, Butter & Sky (파스텔 색조합 2)",
+    bg: "#FAF8F4",
+    accent: "#7FAAC9",
+    text: "#3D2B32",
+    border: "#E6B8C4",
+    stripeColor1: "#FFFFFF",
+    stripeColor2: "#F2EFE9",
+    gridLineColor: "rgba(127, 170, 201, 0.15)",
+    tableHeaderBg: "#E6B8C4",
+    tableSubHeaderBg: "#EEF6FA",
+    tableFooterBg: "#E6B8C4",
+    tableColumnHeaderBg: "#FAF3C0",
+    tableColumnHeaderTextColor: "#3D2B32",
+    tableDataBg: "#FFFFFF",
+    tableFont: "var(--font-main)",
+    tableRadius: "0px",
+  },
+  "pastel-powder": {
+    id: "pastel-powder",
+    name: "Pastel Powder · Azureish White & Queen Pink (#DEE5ED · #E8CCD7)",
+    bg: "#F7FAFD",
+    accent: "#6C6C6A",
+    text: "#2C333A",
+    border: "#CBD6E2",
+    stripeColor1: "#FFFFFF",
+    stripeColor2: "#EFF4F8",
+    gridLineColor: "rgba(108, 108, 106, 0.13)",
+    tableHeaderBg: "#DEE5ED",
+    tableSubHeaderBg: "#FAF2F5",
+    tableFooterBg: "#DEE5ED",
+    tableColumnHeaderBg: "#E8CCD7",
+    tableColumnHeaderTextColor: "#3A3437",
     tableDataBg: "#FFFFFF",
     tableFont: "var(--font-main)",
     tableRadius: "0px",
@@ -241,9 +353,13 @@ export const TASTE_PRESETS: Record<string, TastePreset> = {
   },
 };
 
-// Aliases for backwards compatibility with merged IDs from the 6 requested themes
-TASTE_PRESETS["bardak-pastel"] = TASTE_PRESETS["breeze-blue"];
-TASTE_PRESETS["dido-dream"] = TASTE_PRESETS["dream-state"];
+// Aliases for backwards compatibility with removed/merged preset IDs
+TASTE_PRESETS["breeze-blue"] = TASTE_PRESETS["pastel-blossom"];
+TASTE_PRESETS["dream-state"] = TASTE_PRESETS["dido-dreamcore"];
+TASTE_PRESETS["espresso-blush"] = TASTE_PRESETS["pastel-cocoa"];
+TASTE_PRESETS["systematic"] = TASTE_PRESETS["opal-garden"];
+TASTE_PRESETS["bardak-pastel"] = TASTE_PRESETS["pastel-blossom"];
+TASTE_PRESETS["dido-dream"] = TASTE_PRESETS["dido-dreamcore"];
 
 export const USER_DEFAULT_UI_SETTINGS_KEY = "PayrollApp_UiSettings_UserDefault_v1";
 
@@ -269,13 +385,13 @@ export function colorToHex7(color: string | undefined | null, fallback = "#00000
 
 // Defaults also supply every required field of the registered theme preset.
 export const defaultSettings: UiSettings & Omit<TastePreset, "id" | "name"> = {
-  bg: "#FAF8F5",
+  bg: "#F6F3EE",
   bgImage: "",
   bgImageStyle: "cover",
   bgImageOpacity: 100,
-  accent: "#456449",
-  text: "#243026",
-  border: "#C8D7C9",
+  accent: "#4A3424",
+  text: "#4A3424",
+  border: "#D6CEC4",
   fontSize: "13px",
   tablePadding: "12px 16px",
   tablePaddingMode: "comfortable",
@@ -285,16 +401,18 @@ export const defaultSettings: UiSettings & Omit<TastePreset, "id" | "name"> = {
   customRules: defaultCustomRules,
   titleAlign: "center",
   tableFont: "var(--font-main)",
+  titleFont: "Voyage",
+  titleFontIncludeInitial: false,
   autoSave: true,
   showHelp: true,
   stripeColor1: "#FFFFFF",
-  stripeColor2: "#F2F7FA",
-  gridLineColor: "rgba(69, 100, 73, 0.12)",
-  tableHeaderBg: "#CFDABD",
-  tableSubHeaderBg: "#FAF1F4",
-  tableFooterBg: "#CFDABD",
-  tableColumnHeaderBg: "#F0CCCE",
-  tableColumnHeaderTextColor: "#243026",
+  stripeColor2: "#F3ECEC",
+  gridLineColor: "rgba(74, 52, 36, 0.13)",
+  tableHeaderBg: "#C4A7A7",
+  tableSubHeaderBg: "#F3EFEA",
+  tableFooterBg: "#C4A7A7",
+  tableColumnHeaderBg: "#D6CEC4",
+  tableColumnHeaderTextColor: "#4A3424",
   tableDataBg: "#FFFFFF",
   showPivotSubtotals: true,
   preset: "default",
@@ -1023,6 +1141,12 @@ export function applyUiSettings(settings: UiSettings, previewRule?: Partial<Cust
     root.style.setProperty("--font-table", settings.tableFont);
     root.style.setProperty("--tabular-nums", settings.tableFont);
   }
+  const effectiveTitleFont = resolveTitleFontStack(settings.titleFont);
+  root.style.setProperty("--font-table-title", effectiveTitleFont);
+  root.setAttribute(
+    "data-title-font-include-initial",
+    settings.titleFontIncludeInitial ? "true" : "false"
+  );
   const effectivePadding = getEffectiveTablePadding(settings);
   root.style.setProperty("--table-padding", effectivePadding);
   if (settings.radius) root.style.setProperty("--radius", settings.radius);
@@ -1330,6 +1454,60 @@ export function applyUiSettings(settings: UiSettings, previewRule?: Partial<Cust
     .table-header :is(h1, h2, h3, h4),
     .trial-balance-header :is(h1, h2, h3, h4) {
       color: var(--table-header-text-color, ${headerContrast.primary}) !important;
+    }
+
+    .app-table-title-remainder,
+    .app-table-title-remainder--expanded,
+    #trial-balance-summary #trial-balance-title .app-table-title-remainder,
+    #trial-balance-summary .trial-balance-title .app-table-title-remainder,
+    .page-timesheet-summary h1 .app-table-title-remainder,
+    .navbar-current-label {
+      font-family: ${effectiveTitleFont} !important;
+    }
+
+    ${
+      settings.titleFontIncludeInitial
+        ? `
+    .app-table-initial-mark,
+    #trial-balance-summary #trial-balance-title .app-table-initial-mark,
+    #trial-balance-summary .trial-balance-title .app-table-initial-mark {
+      width: auto !important;
+      height: auto !important;
+      line-height: 1.35 !important;
+    }
+    .app-table-initial-mark__glyph,
+    .table-initial-toggle[aria-expanded="false"] .app-table-initial-mark__glyph,
+    #trial-balance-summary #trial-balance-title .app-table-initial-mark__glyph,
+    #trial-balance-summary .trial-balance-title .app-table-initial-mark__glyph {
+      width: auto !important;
+      height: auto !important;
+      line-height: 1.35 !important;
+      color: var(--table-initial-color, var(--primary, #8E4A49)) !important;
+      background: transparent !important;
+      background-color: transparent !important;
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
+      font-family: ${effectiveTitleFont} !important;
+      font-weight: 400 !important;
+      letter-spacing: -0.025em !important;
+      text-transform: uppercase !important;
+      filter: none !important;
+    }
+    .app-table-initial-mark__glyph:empty::before {
+      content: attr(data-glyph);
+    }
+    .unified-table-frame-header .app-table-initial-mark__glyph,
+    .table-header .app-table-initial-mark__glyph,
+    .trial-balance-header .app-table-initial-mark__glyph {
+      color: var(--table-header-text-color, ${headerContrast.primary}) !important;
+    }
+    .app-table-title-line,
+    #trial-balance-summary #trial-balance-title,
+    #trial-balance-summary .trial-balance-title {
+      gap: 0px !important;
+    }
+        `
+        : ""
     }
 
     .unified-table-frame-header :is(p, .app-table-title-meta, .text-muted-foreground),
@@ -1645,10 +1823,17 @@ export async function loadUiSettings(): Promise<UiSettings> {
       });
     }
 
-    // For recognized merged presets, normalize to target preset
+    // Normalize legacy/removed presets to their new replacement presets
     if (result.preset) {
-      if (result.preset === "bardak-pastel") result.preset = "breeze-blue";
-      else if (result.preset === "dido-dream") result.preset = "dream-state";
+      if (result.preset === "bardak-pastel" || result.preset === "breeze-blue") {
+        result.preset = "pastel-blossom";
+      } else if (result.preset === "dido-dream" || result.preset === "dream-state") {
+        result.preset = "dido-dreamcore";
+      } else if (result.preset === "espresso-blush") {
+        result.preset = "pastel-cocoa";
+      } else if (result.preset === "systematic") {
+        result.preset = "opal-garden";
+      }
     }
 
     if (result.preset && TASTE_PRESETS[result.preset] && result.preset !== "default") {

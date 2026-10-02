@@ -28,6 +28,45 @@ html body #root :is(
   border: 0 !important;
   border-width: 0 !important;
   border-style: none !important;
+  border-radius: 0px !important;
+}
+
+/* Enforce border-radius = 0 across all table frames, containers, bodies, headers, footers and total rows */
+html body #root :is(
+  .unified-table-frame,
+  .analysis-table-frame,
+  .analysis-table-region,
+  .analysis-data-table,
+  .data-table-wrapper,
+  .audit-data-table-wrapper,
+  .pivot-table-container,
+  .master-ae-table-wrapper,
+  .pivot-master-frame,
+  .trial-balance-frame,
+  .table-container,
+  .table-data-container,
+  .table-wrapper,
+  .master-config-data-table,
+  .master-config-table-region,
+  .reconcile-table-region,
+  .hold-dashboard-card,
+  .bulk-payment-layout,
+  .bulk-payment-data-panel,
+  .table-body-region,
+  table,
+  thead,
+  tbody,
+  tfoot,
+  tr,
+  th,
+  td,
+  .table-header,
+  .unified-table-frame-header,
+  .table-footer-pagination,
+  .unified-table-frame-footer,
+  .total-row
+) {
+  border-radius: 0px !important;
 }
 
 html body #root .trial-balance-frame {
@@ -328,4 +367,65 @@ html body #root :is(
     border-bottom: 0 !important;
     border-left: 0 !important;
   }
+
+  /*
+   * Complete sealing for sticky total/footer rows:
+   * 1. 100% opaque solid background matching theme footer/column header.
+   * 2. Zero border radius.
+   * 3. Highest z-index above table body rows to ensure zero data leak when scrolling.
+   */
+  html body #root :is(
+    .unified-table-frame,
+    .analysis-table-frame,
+    .data-table-wrapper,
+    .audit-data-table-wrapper,
+    .pivot-table-container,
+    .master-ae-table-wrapper,
+    .reconcile-table-region,
+    .table-container,
+    .hold-dashboard-card
+  ) :is(tfoot, .total-row) {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 35 !important;
+    background-color: var(--table-column-header-bg, var(--table-footer-bg, #FAF3E8)) !important;
+    opacity: 1 !important;
+    border-radius: 0px !important;
+  }
+
+  html body #root :is(
+    .unified-table-frame,
+    .analysis-table-frame,
+    .data-table-wrapper,
+    .audit-data-table-wrapper,
+    .pivot-table-container,
+    .master-ae-table-wrapper,
+    .reconcile-table-region,
+    .table-container,
+    .hold-dashboard-card
+  ) :is(tfoot td, tfoot th, .total-row td, .total-row th) {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 35 !important;
+    background-color: var(--table-column-header-bg, var(--table-footer-bg, #FAF3E8)) !important;
+    opacity: 1 !important;
+    border-radius: 0px !important;
+  }
+
+  html body #root :is(
+    .unified-table-frame,
+    .analysis-table-frame,
+    .data-table-wrapper,
+    .audit-data-table-wrapper,
+    .pivot-table-container,
+    .master-ae-table-wrapper,
+    .reconcile-table-region,
+    .table-container,
+    .hold-dashboard-card
+  ) :is(.sticky-footer-col, .sticky-col-selectable, .sticky-col-row-number, .sticky-col-first-data) {
+    z-index: 45 !important;
+  }
 }
+

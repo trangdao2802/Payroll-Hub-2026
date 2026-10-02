@@ -19,7 +19,9 @@ import {
   computeContrastTextColor,
   calculateRelativeLuminance,
   calculateContrastRatio,
+  resolveTitleFontStack,
 } from "../lib/ui-settings";
+import { TableInitialMark, TableTitleRemainder } from "./TableInitialMark";
 import { toast } from "sonner";
 
 export interface ThemePreviewCardProps {
@@ -51,17 +53,17 @@ export function ThemePreviewCard({
       return (
         document.documentElement.getAttribute("data-theme") ||
         localStorage.getItem("app-theme") ||
-        "dream-state"
+        "opal-garden"
       );
     }
-    return "dream-state";
+    return "opal-garden";
   });
 
   // Selected preset being previewed (null means follow initialPresetId / activeThemeId)
   const [userSelectedPresetId, setUserSelectedPresetId] = useState<string | null>(null);
   const [presetVersion, setPresetVersion] = useState(0);
 
-  const previewId = userSelectedPresetId ?? (initialPresetId || activeThemeId || "dream-state");
+  const previewId = userSelectedPresetId ?? (initialPresetId || activeThemeId || "opal-garden");
 
   // Synchronize active theme from storage/DOM mutation events
   useEffect(() => {
@@ -69,7 +71,7 @@ export function ThemePreviewCard({
       const current =
         document.documentElement.getAttribute("data-theme") ||
         localStorage.getItem("app-theme") ||
-        "dream-state";
+        "opal-garden";
       setActiveThemeId(current);
       setPresetVersion((v) => v + 1);
     };
@@ -336,13 +338,28 @@ export function ThemePreviewCard({
             borderColor: previewColors.gridLineColor,
           }}
         >
-          <div className="flex flex-col">
-            <span
-              className="text-xs font-bold tracking-tight leading-tight"
-              style={{ color: previewColors.headerContrast.primary }}
+          <div className="flex flex-col min-w-0">
+            <div
+              className={`app-table-title-line ${
+                customSettingsPreview?.titleFontIncludeInitial ? "app-table-title-line--font-mode" : ""
+              }`}
+              style={{
+                color: previewColors.headerContrast.primary,
+                "--font-table-title": resolveTitleFontStack(customSettingsPreview?.titleFont),
+                "--table-initial-color": previewColors.headerContrast.primary,
+              } as React.CSSProperties}
             >
-              BẢNG TỔNG HỢP CÔNG & LƯƠNG
-            </span>
+              <TableInitialMark
+                label="BẢNG TỔNG HỢP CÔNG & LƯƠNG"
+                color={previewColors.headerContrast.primary}
+                className={
+                  customSettingsPreview?.titleFontIncludeInitial
+                    ? "app-table-initial-mark--font-mode"
+                    : ""
+                }
+              />
+              <TableTitleRemainder label="BẢNG TỔNG HỢP CÔNG & LƯƠNG" />
+            </div>
             <span
               className="text-[10px] leading-tight"
               style={{ color: previewColors.headerContrast.muted }}

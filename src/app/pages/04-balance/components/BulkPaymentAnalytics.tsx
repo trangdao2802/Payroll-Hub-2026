@@ -1494,7 +1494,7 @@ export function BulkPaymentAnalytics({
           hideBuFilter={true}
           hideSaveStatus={true}
           headerClassName="bg-primary/[0.055] text-primary border-[#e7dbdc] font-bold text-[9px] uppercase tracking-[0.08em] text-center"
-          footerClassName="bg-primary/[0.085] text-primary border-t border-[#e7dbdc] font-black text-[12.5px] md:text-[13px]"
+          footerClassName="bg-[var(--table-column-header-bg,#FAF3E8)] text-[var(--table-column-header-text-color,inherit)] border-t-2 border-[var(--border,#cbd5e1)] font-black text-[12.5px] md:text-[13px]"
         />
       </div>
 
@@ -1508,7 +1508,7 @@ export function BulkPaymentAnalytics({
           }
         }}
       >
-        <DialogContent className="!w-[95vw] !max-w-[1100px] !h-[88vh] !max-h-[850px] !p-0 !gap-0 flex flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+        <DialogContent className="!w-[95vw] !max-w-[1100px] !h-[88vh] !max-h-[850px] !p-0 !gap-0 flex flex-col overflow-hidden rounded-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
           {drilldownRow && (
             <>
               {/* Dialog Header */}
@@ -1810,7 +1810,7 @@ export function BulkPaymentAnalytics({
                 </div>
 
                 {/* Table Region */}
-                <div className="flex-1 overflow-auto border-0 rounded-xl bg-white dark:bg-slate-900 relative shadow-2xs ring-1 ring-slate-200/50 dark:ring-slate-800">
+                <div className="flex-1 overflow-auto border-0 rounded-none bg-white dark:bg-slate-900 relative shadow-2xs ring-1 ring-slate-200/50 dark:ring-slate-800">
                   {drilldownViewMode === "teachers" ? (
                     filteredTeacherSummaries.length === 0 ? (
                       <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">

@@ -1,9 +1,4 @@
-import type { CSSProperties } from "react";
-
-interface TableInitialMarkProps {
-  label: string;
-  className?: string;
-}
+import { useEffect, useState, type CSSProperties } from "react";
 
 const REFERENCE_GLYPHS = {
   A: ["a", 77, 0], B: ["b", 78, 0], C: ["c", 78, 0], D: ["d", 78, 0], E: ["e", 75, 0], F: ["f", 76, 0],
@@ -55,15 +50,47 @@ interface TableInitialMarkProps {
   className?: string;
   style?: CSSProperties;
   glyphStyle?: CSSProperties;
+  color?: string;
 }
 
-/** An exact, theme-aware crop of the supplied A–Z reference alphabet. */
+function readTitleFontIncludeInitial(): boolean {
+  if (typeof document === "undefined") return false;
+  return (
+    document.documentElement.getAttribute("data-title-font-include-initial") ===
+    "true"
+  );
+}
+
+/** An exact, theme-aware crop of the supplied A–Z reference alphabet, or same-font initial when enabled. */
 export function TableInitialMark({
   label,
   className = "",
   style,
   glyphStyle: customGlyphStyle,
+  color,
 }: TableInitialMarkProps) {
+  const [includeInitialInFont, setIncludeInitialInFont] = useState<boolean>(() =>
+    readTitleFontIncludeInitial()
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const sync = () => setIncludeInitialInFont(readTitleFontIncludeInitial());
+    sync();
+    window.addEventListener("ui-settings-changed", sync);
+    window.addEventListener("storage", sync);
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-title-font-include-initial"],
+    });
+    return () => {
+      window.removeEventListener("ui-settings-changed", sync);
+      window.removeEventListener("storage", sync);
+      observer.disconnect();
+    };
+  }, []);
+
   const initial = getTitleCharacters(label)[0]?.toLocaleUpperCase("vi-VN") || "";
   const normalizedInitial = initial
     .normalize("NFD")
@@ -71,16 +98,40 @@ export function TableInitialMark({
     .toUpperCase();
   const glyphKey = (normalizedInitial in REFERENCE_GLYPHS ? normalizedInitial : "A") as ReferenceGlyph;
   const [assetName, sourceWidth] = REFERENCE_GLYPHS[glyphKey];
+  const isFontMode =
+    includeInitialInFont || className.includes("app-table-initial-mark--font-mode");
+
   const glyphStyle = {
     "--table-initial-mask": `url("/fonts/rare-alphabet/${assetName}.png")`,
     "--table-initial-glyph-width": `${((sourceWidth / REFERENCE_CELL_HEIGHT) * DISPLAY_GLYPH_HEIGHT_EM).toFixed(3)}em`,
+    ...(color ? { "--table-initial-color": color } : {}),
     ...customGlyphStyle,
   } as CSSProperties;
-  const classes = `app-table-initial-mark app-table-initial-mark--reference ${className}`.trim();
+
+  const mergedStyle = {
+    ...(color ? { "--table-initial-color": color, color } : {}),
+    ...style,
+  } as CSSProperties;
+
+  const classes = `app-table-initial-mark app-table-initial-mark--reference ${
+    isFontMode ? "app-table-initial-mark--font-mode" : ""
+  } ${className}`.trim();
 
   return (
-    <span aria-hidden="true" className={classes} data-glyph={glyphKey} style={style}>
-      <span className="app-table-initial-mark__glyph" style={glyphStyle} />
+    <span
+      aria-hidden="true"
+      className={classes}
+      data-glyph={glyphKey}
+      data-initial={initial || glyphKey}
+      style={mergedStyle}
+    >
+      <span
+        className="app-table-initial-mark__glyph"
+        data-glyph={initial || glyphKey}
+        style={glyphStyle}
+      >
+        {isFontMode ? initial || glyphKey : null}
+      </span>
     </span>
   );
 }
