@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import {
   History,
   Trash2,
@@ -10,6 +10,7 @@ import {
   ArchiveRestore,
   Plus,
   Layers,
+  HardDrive,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
@@ -28,6 +29,8 @@ import { useAppData } from "../lib/contexts/AppDataContext";
 import { SnapshotHistoryPanel } from "./snapshots/SnapshotHistoryPanel";
 import { toast } from "sonner";
 
+const StorageUsageDialog = lazy(() => import("./StorageUsageDialog"));
+
 export function DataChangeHistoryToggle() {
   const { appData, updateAppData, undo, canUndo } = useAppData();
 
@@ -40,6 +43,7 @@ export function DataChangeHistoryToggle() {
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [isFullPanelOpen, setIsFullPanelOpen] = useState(false);
   const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
+  const [isStorageUsageOpen, setIsStorageUsageOpen] = useState(false);
 
   // Load user edits and snapshots
   const refreshData = useCallback(async () => {
@@ -555,8 +559,8 @@ export function DataChangeHistoryToggle() {
             )}
           </div>
 
-          {/* Footer with full snapshot manager button */}
-          <div className="flex items-center justify-between px-3 py-2 border-t border-border/70 bg-muted/20 text-[10px] text-muted-foreground font-medium">
+          {/* Read-only storage diagnostics and the existing snapshot manager. */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-border/70 bg-muted/20 text-[10px] text-muted-foreground font-medium">
             <button
               type="button"
               onClick={() => {
@@ -566,7 +570,16 @@ export function DataChangeHistoryToggle() {
               className="flex items-center gap-1.5 text-primary hover:text-primary/80 font-bold hover:underline cursor-pointer"
             >
               <Layers className="w-3 h-3 text-primary" />
-              <span>Quản lý bản sao chi tiết (Google Sheets style) →</span>
+              <span className="whitespace-nowrap">Quản lý bản sao →</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setIsOpen(false); setIsStorageUsageOpen(true); }}
+              className="flex items-center gap-1.5 whitespace-nowrap text-primary hover:text-primary/80 font-bold hover:underline cursor-pointer active:scale-[0.98]"
+            >
+              <HardDrive className="h-3 w-3" />
+              Kiểm tra dung lượng
             </button>
 
             <span className="font-mono tabular-nums text-muted-foreground/80">
@@ -575,6 +588,12 @@ export function DataChangeHistoryToggle() {
           </div>
         </PopoverContent>
       </Popover>
+
+      {isStorageUsageOpen ? (
+        <Suspense fallback={null}>
+          <StorageUsageDialog onClose={() => setIsStorageUsageOpen(false)} />
+        </Suspense>
+      ) : null}
 
       {/* Full Screen Snapshot History Modal if user wants deep comparison */}
       <SnapshotHistoryPanel
