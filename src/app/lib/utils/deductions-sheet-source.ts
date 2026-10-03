@@ -94,6 +94,36 @@ export function resolveDeductionsSheetSource(
   };
 }
 
+/** Sheet Source is authoritative; a combined HOLD sheet needs its salary-month Note. */
+export function getDeductionsSourceMonth(
+  sourceValue: unknown,
+  noteValue: unknown,
+  reportMonth: unknown,
+): string | null {
+  const resolution = resolveDeductionsSheetSource(sourceValue, noteValue);
+  if (resolution.needsSourceMonthNote) return null;
+  const source = normalizeText(resolution.sheetSource);
+  const parseFullMonth = (text: string): string | null => {
+    const monthFirst = text.match(/(?:^|[^\d])(0?[1-9]|1[0-2])\s*[./-]\s*((?:19|20)\d{2})\b/);
+    if (monthFirst) return `${monthFirst[1].padStart(2, "0")}.${monthFirst[2]}`;
+    const yearFirst = text.match(/\b((?:19|20)\d{2})\s*[./-]\s*(0?[1-9]|1[0-2])\b/);
+    return yearFirst ? `${yearFirst[2].padStart(2, "0")}.${yearFirst[1]}` : null;
+  };
+  const fullSourceMonth = parseFullMonth(source);
+  if (fullSourceMonth) return fullSourceMonth;
+  if (resolution.salaryMonth !== null) {
+    const fullNoteMonth = parseFullMonth(normalizeText(noteValue));
+    if (fullNoteMonth) return fullNoteMonth;
+  }
+  const match = source.match(/(?:THANG|THG|MONTH|HOLD|T)\s*(0?[1-9]|1[0-2])\b/);
+  const month = resolution.salaryMonth ?? toMonth(match?.[1]);
+  const reporting = parseFullMonth(normalizeText(reportMonth));
+  if (month === null || !reporting) return null;
+  const [reportingMonth, reportingYear] = reporting.split(".").map(Number);
+  const year = month > reportingMonth ? reportingYear - 1 : reportingYear;
+  return `${String(month).padStart(2, "0")}.${year}`;
+}
+
 export function sortMissingDeductionsSourceNotesFirst<
   T extends DeductionsSourceRow,
 >(rows: readonly T[]): T[] {

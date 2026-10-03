@@ -85,6 +85,25 @@ const AUTO_FIT_SAMPLE_LIMIT = 320;
 const COLUMN_FILTER_SCAN_CHUNK_SIZE = 2_000;
 const COLUMN_FILTER_RENDER_LIMIT = 250;
 const COLUMN_FILTER_SORT_LIMIT = 5_000;
+const EMPTY_HIDDEN_COLUMNS: string[] = [];
+
+function useRowEventHandlers(handlers: {
+  startEditing: (...args: any[]) => void;
+  handleCellMouseDown: (...args: any[]) => void;
+  handleCellMouseEnter: (...args: any[]) => void;
+  handleContextMenu: (...args: any[]) => void;
+  handleEditorKeyDown: (...args: any[]) => void;
+}) {
+  const latest = useRef(handlers);
+  useLayoutEffect(() => { latest.current = handlers; });
+  return useMemo(() => ({
+    startEditing: (...args: any[]) => latest.current.startEditing(...args),
+    handleCellMouseDown: (...args: any[]) => latest.current.handleCellMouseDown(...args),
+    handleCellMouseEnter: (...args: any[]) => latest.current.handleCellMouseEnter(...args),
+    handleContextMenu: (...args: any[]) => latest.current.handleContextMenu(...args),
+    handleEditorKeyDown: (...args: any[]) => latest.current.handleEditorKeyDown(...args),
+  }), []);
+}
 
 export function isBuColumnKeyOrLabel(key?: string, label?: string): boolean {
   const k = String(key || "").trim().toLowerCase();
@@ -788,6 +807,7 @@ const DataRow = React.memo(
     handleCellMouseDown,
     handleCellMouseEnter,
     handleContextMenu,
+    handleEditorKeyDown,
     setEditValue,
     commitEdit,
     cancelEdit,
@@ -963,15 +983,7 @@ const DataRow = React.memo(
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onBlur={commitEdit}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          commitEdit();
-                        } else if (e.key === "Escape") {
-                          e.preventDefault();
-                          cancelEdit();
-                        }
-                      }}
+                      onKeyDown={(e) => handleEditorKeyDown(e, rIdx, cIdx)}
                       className="w-full h-full px-4 py-2 bg-transparent border-none focus:ring-0 text-[0.7rem] font-bold text-foreground uppercase appearance-none cursor-pointer"
                       autoFocus
                     >
@@ -991,15 +1003,7 @@ const DataRow = React.memo(
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onBlur={commitEdit}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          commitEdit();
-                        } else if (e.key === "Escape") {
-                          e.preventDefault();
-                          cancelEdit();
-                        }
-                      }}
+                      onKeyDown={(e) => handleEditorKeyDown(e, rIdx, cIdx)}
                       className="w-full h-full px-4 py-2 bg-transparent border-none focus:ring-0 text-[0.8rem] font-medium text-foreground tracking-tight"
                       autoFocus
                     />
@@ -1023,6 +1027,9 @@ const DataRow = React.memo(
   (prev, next) => {
     if (prev.borderClass !== next.borderClass) return false;
     if (prev.row !== next.row || prev.isEditable !== next.isEditable) return false;
+    if (prev.selectable !== next.selectable || prev.showRowNumber !== next.showRowNumber) return false;
+    if (prev.onRowClick !== next.onRowClick || prev.onCellChange !== next.onCellChange) return false;
+    if (prev.formatValue !== next.formatValue || prev.getAlignment !== next.getAlignment) return false;
     if (prev.rIdx !== next.rIdx) return false;
     
     // Compare selection status for this specific row instead of Set instance equality
@@ -1125,7 +1132,7 @@ export const DataTable = React.forwardRef<DataTableRef, DataTableProps>(
       hideColumnVisibilityToggle = false,
       defaultItemsPerPage,
       hideBuFilter = false,
-      alwaysHiddenColumns = [],
+      alwaysHiddenColumns = EMPTY_HIDDEN_COLUMNS,
       footerActionContent,
       footerStatusContent,
       hideSaveStatus = false,
@@ -1373,7 +1380,7 @@ export const DataTable = React.forwardRef<DataTableRef, DataTableProps>(
     );
     const [columnTypes, setColumnTypes] = useState<Record<string, string>>({});
 
-    const formatValue = (value: any, type?: string, colKey?: string) => {
+    const formatValue = useCallback((value: any, type?: string, colKey?: string) => {
       const configuredType = (colKey && columnTypes[colKey]) || type || "text";
       const effectiveType =
         colKey && isNonSummableTextColumn(colKey)
@@ -1499,9 +1506,9 @@ export const DataTable = React.forwardRef<DataTableRef, DataTableProps>(
         return String(value);
       }
       return value == null ? "" : String(value);
-    };
+    }, [columnTypes]);
 
-    const getAlignment = (col: Column) => {
+    const getAlignment = useCallback((col: Column) => {
       const type = col.type;
       const key = col.key;
       if (col.align) {
@@ -1531,7 +1538,7 @@ export const DataTable = React.forwardRef<DataTableRef, DataTableProps>(
         default:
           return "text-left";
       }
-    };
+    }, [columnFormats]);
 
     // Use standard effect or simple initial state setup instead to avoid rendering cycle
     // Note: since this is just parsing localStorage it can be done once initially instead
@@ -2966,6 +2973,24 @@ export const DataTable = React.forwardRef<DataTableRef, DataTableProps>(
       [selectionRange],
     );
 
+    const handleEditorKeyDown = useCallback((e: React.KeyboardEvent, r: number, c: number) => {
+      if (e.key === "Enter" && !e.altKey) {
+        e.preventDefault();
+        // The window shortcut must not reopen the editor after this commit.
+        e.stopPropagation();
+        commitEdit();
+        setActiveCellWithSource({ r: Math.min(r + 1, filteredAndSortedData.length - 1), c }, "keyboard");
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelEdit();
+      }
+    }, [commitEdit, cancelEdit, filteredAndSortedData.length, setActiveCellWithSource]);
+
+    const rowEventHandlers = useRowEventHandlers({
+      startEditing, handleCellMouseDown, handleCellMouseEnter, handleContextMenu, handleEditorKeyDown,
+    });
+
     const handleTableMouseMove = useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
         if (!isSelecting || e.buttons !== 1) return;
@@ -4029,10 +4054,11 @@ export const DataTable = React.forwardRef<DataTableRef, DataTableProps>(
                       isEditable={isEditable}
                       onCellChange={onCellChange}
                       toggleRow={toggleRow}
-                      startEditing={startEditing}
-                      handleCellMouseDown={handleCellMouseDown}
-                      handleCellMouseEnter={handleCellMouseEnter}
-                      handleContextMenu={handleContextMenu}
+                      startEditing={rowEventHandlers.startEditing}
+                      handleCellMouseDown={rowEventHandlers.handleCellMouseDown}
+                      handleCellMouseEnter={rowEventHandlers.handleCellMouseEnter}
+                      handleContextMenu={rowEventHandlers.handleContextMenu}
+                      handleEditorKeyDown={rowEventHandlers.handleEditorKeyDown}
                       setEditValue={setEditValue}
                       commitEdit={commitEdit}
                       cancelEdit={cancelEdit}

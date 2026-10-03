@@ -154,6 +154,37 @@ export function calculateReconciliationTotals(
   };
 }
 
+/** Per-period calculator for immutable tables: only changed deductions need reclassification. */
+export function createReconciliationTotalsCalculator(reportMonth: string) {
+  const emptyTable = { headers: [], data: [] };
+  let grossSource: ReconciliationSource["Sheet1_AE"];
+  let bankSource: ReconciliationSource["Bank_North_AE"];
+  let grossPayTotal = 0;
+  let actual = 0;
+  const contributions = new WeakMap<object, number>();
+  return (appData: ReconciliationSource): ReconciliationTotals => {
+    if (grossSource !== appData.Sheet1_AE) {
+      grossSource = appData.Sheet1_AE;
+      grossPayTotal = calculateReconciliationTotals({ Sheet1_AE: grossSource, Hold_AE: emptyTable, Bank_North_AE: emptyTable }, reportMonth).grossPayTotal;
+    }
+    if (bankSource !== appData.Bank_North_AE) {
+      bankSource = appData.Bank_North_AE;
+      actual = calculateReconciliationTotals({ Sheet1_AE: emptyTable, Hold_AE: emptyTable, Bank_North_AE: bankSource }, reportMonth).actual;
+    }
+    const deductionsTotal = (appData.Hold_AE?.data || []).reduce((sum: number, row: any) => {
+      if (!row || typeof row !== "object") return sum;
+      let contribution = contributions.get(row);
+      if (contribution === undefined) {
+        contribution = getDeductionContribution(row, reportMonth);
+        contributions.set(row, contribution);
+      }
+      return sum + contribution;
+    }, 0);
+    const expected = grossPayTotal + deductionsTotal;
+    return { actual, expected, variance: actual - expected, grossPayTotal, deductionsTotal };
+  };
+}
+
 export function buildBankExportRowsForMonth(
   appData: AppData,
   reportMonth = appData.globalMonth || "03.2026",

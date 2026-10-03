@@ -1,5 +1,5 @@
 import { useTableRestore } from '../../../hooks/useTableRestore';
-import { deductionsNote, prioritizeMatchingDeductions } from "../../../lib/utils/deductions-display";
+import { deductionsNote, createDeductionsPrioritizer } from "../../../lib/utils/deductions-display";
 import { chooseExcelExport } from "../../../components/ExportScopeDialog";
 import { ConfirmDialog } from "../../../components/shared/ConfirmDialog";
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -42,20 +42,18 @@ import {
 } from "../../../components/ui/alert-dialog";
 import {
   carryEligibleHoldsToNextMonth,
-  collapseMergedHoldSourceRows,
+  createHoldTransactionReconciler,
   getEligibleHoldRowsForReport,
   getHoldScopedIdentity,
   getNextPayrollMonth,
   getMergedHoldOriginalIndexes,
-  mergeDuplicateHoldRows,
   parsePayrollMonth,
-  reconcileHoldTransactionRows,
   removeHoldCarryoverFromReport,
   removeSelectedHoldSourceRows,
 } from "../../../lib/utils/hold-carryover";
-import { calculateReconciliationTotals } from "../../../lib/utils/reconciliation-sync";
+import { createDeductionsDisplayProjector } from "../../../lib/utils/deductions-view";
+import { createReconciliationTotalsCalculator } from "../../../lib/utils/reconciliation-sync";
 import {
-  resolveDeductionsSheetSource,
   sortMissingDeductionsSourceNotesFirst,
 } from "../../../lib/utils/deductions-sheet-source";
 import { TransactionReferenceCell } from "../../../components/TransactionReferenceCell";
@@ -116,22 +114,26 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
     const currentHoldSnapshot =
       appData.HoldCarrySnapshots?.[currentReportMonth];
     const isCurrentMonthLocked = Boolean(currentHoldSnapshot);
+    const calculateTotals = useMemo(
+      () => createReconciliationTotalsCalculator(currentReportMonth),
+      [currentReportMonth],
+    );
     const reconciliationTotals = useMemo(
       () =>
-        calculateReconciliationTotals(
+        calculateTotals(
           {
             globalMonth: currentReportMonth,
             Sheet1_AE: appData.Sheet1_AE,
             Hold_AE: appData.Hold_AE,
             Bank_North_AE: appData.Bank_North_AE,
           },
-          currentReportMonth,
         ),
       [
         appData.Sheet1_AE,
         appData.Hold_AE,
         appData.Bank_North_AE,
         currentReportMonth,
+        calculateTotals,
       ],
     );
 
@@ -184,6 +186,10 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
       [appData.globalMonth],
     );
 
+    const projectDisplayRow = useMemo(() => createDeductionsDisplayProjector(), []);
+    const prioritizeRows = useMemo(() => createDeductionsPrioritizer(), []);
+    const holdTransactions = useMemo(() => createHoldTransactionReconciler(), []);
+
     // 2. Filter data up to the current active period
     const filteredData = useMemo(() => {
       const raw = appData.Hold_AE || { headers: [], data: [] };
@@ -193,7 +199,7 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
       const currentPeriodVal = appData.globalMonth || "03.2026";
       const currentLimit = parseToMonthIndex(currentPeriodVal);
 
-      const normalizedRows = reconcileHoldTransactionRows(raw.data).filter((r: any) => {
+      const normalizedRows = holdTransactions.reconcile(raw.data).filter((r: any) => {
         const nghiepVu = String(r["Nghiệp vụ"] || "").toUpperCase().trim();
         if (nghiepVu === "BONUS" || nghiepVu === "B" || nghiepVu.includes("BONUS") || nghiepVu === "⏩" || nghiepVu === "⏯") {
           return false; // Bonus moved to Gross Pay (Extra Summer Instructors)
@@ -201,43 +207,15 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
         const rowMonth = r["Tháng báo cáo"] || r["_fileMonth"] || "";
         const rowLimit = parseToMonthIndex(rowMonth);
         return rowLimit === currentLimit;
-      }).map((row: any) => {
-        const sourceResolution = resolveDeductionsSheetSource(
-          row["Sheet Source"],
-          row.Note,
-        );
-        const normalizedRow = {
-          ...row,
-          "ID Number": row["ID Number"] ?? "",
-          "Sheet Source": sourceResolution.sheetSource,
-          _needsSheetSourceNote: sourceResolution.needsSourceMonthNote,
-        };
-
-        // The operation controls the sign in every report month. A carried
-        // HOLD/CANCEL stays negative; switching it to ADD makes the same row
-        // positive without creating a second transaction.
-        const nghiepVu = String(normalizedRow["Nghiệp vụ"] || "").toUpperCase().trim();
-        const currentTotalPayment = parseMoneyToNumber(normalizedRow["TOTAL PAYMENT"] || 0);
-
-        if (nghiepVu.includes("HOLD") || nghiepVu === "H") {
-          normalizedRow["TOTAL PAYMENT"] = -Math.abs(currentTotalPayment);
-        } else if (nghiepVu.includes("CANCEL") || nghiepVu === "C") {
-          normalizedRow["TOTAL PAYMENT"] = -Math.abs(currentTotalPayment);
-        } else if (nghiepVu.includes("ADD") || nghiepVu === "A" || nghiepVu === "") {
-          normalizedRow["TOTAL PAYMENT"] = Math.abs(currentTotalPayment);
-        } else if (nghiepVu === "B" || nghiepVu.includes("BONUS") || nghiepVu === "⏩" || nghiepVu === "⏯") {
-          normalizedRow["TOTAL PAYMENT"] = Math.abs(currentTotalPayment);
-        }
-        return normalizedRow;
-      });
+      }).map(projectDisplayRow);
 
       return {
         ...raw,
-        data: prioritizeMatchingDeductions(sortMissingDeductionsSourceNotesFirst(
-          mergeDuplicateHoldRows(normalizedRows),
+        data: prioritizeRows(sortMissingDeductionsSourceNotesFirst(
+          holdTransactions.merge(normalizedRows),
         )),
       };
-    }, [appData.Hold_AE, appData.globalMonth, parseToMonthIndex]);
+    }, [appData.Hold_AE, appData.globalMonth, parseToMonthIndex, projectDisplayRow, prioritizeRows, holdTransactions]);
 
     const [tableSummaryState, setTableSummaryState] = React.useState<{
       source: any[] | null;
@@ -246,7 +224,11 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
 
     const handleFilteredTableDataChange = useCallback(
       (rows: any[]) => {
-        setTableSummaryState({ source: filteredData.data, rows });
+        setTableSummaryState((prev) =>
+          prev.source === filteredData.data && prev.rows === rows
+            ? prev
+            : { source: filteredData.data, rows },
+        );
       },
       [filteredData.data],
     );
@@ -362,7 +344,7 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
             }
           }
 
-          const collapsedData = collapseMergedHoldSourceRows({
+          const collapsedData = holdTransactions.collapse({
             rows: data,
             mergedRow: row,
             canonicalIndex: rowIndex,
@@ -373,12 +355,12 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
             ...prev,
             Hold_AE: {
               ...targetTab,
-              data: reconcileHoldTransactionRows(collapsedData),
+              data: holdTransactions.reconcile(collapsedData),
             },
           };
         });
       },
-      [currentReportMonth, isCurrentMonthLocked, updateAppData],
+      [currentReportMonth, isCurrentMonthLocked, updateAppData, holdTransactions],
     );
 
     React.useEffect(() => {
@@ -466,6 +448,10 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
       [currentReportMonth, filteredData.data, isCurrentMonthLocked, updateAppData, ref],
     );
 
+    const dataColumnKeys = JSON.stringify(
+      Object.keys(filteredData.data[0] || {}).filter((key) => !key.startsWith("_")),
+    );
+
     // 5. Dynamic Columns memoization
     const columns = useMemo(() => {
       let headers = filteredData.headers;
@@ -481,8 +467,8 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
       }
 
       // Merge additional keys from data to ensure nothing is hidden
-      if (filteredData.data && filteredData.data.length > 0) {
-        const allKeys = Object.keys(filteredData.data[0]);
+      {
+        const allKeys = JSON.parse(dataColumnKeys) as string[];
         allKeys.forEach(key => {
           const kUp = key.toUpperCase();
           if (
@@ -722,7 +708,7 @@ export const HoldAETable = forwardRef<any, HoldAETableProps>(
         });
     }, [
       filteredData.headers,
-      filteredData.data,
+      dataColumnKeys,
       handleCellChange,
       appData.globalMonth,
       currentReportMonth,

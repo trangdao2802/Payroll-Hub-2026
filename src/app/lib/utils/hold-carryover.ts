@@ -1,4 +1,5 @@
 import { parseMoneyToNumber } from "./data-utils";
+import { getDeductionsSourceMonth } from "./deductions-sheet-source";
 
 export type HoldCarryRow = Record<string, unknown>;
 
@@ -131,9 +132,15 @@ function canonicalizeHoldTransactionRow(
   row: HoldCarryRow,
 ): HoldCarryRow {
   const operation = getHoldOperation(row) || "Hold";
+  const amount = amountForOperation(row["TOTAL PAYMENT"], operation);
+  if (
+    row["TOTAL PAYMENT"] === amount &&
+    row["Nghiệp vụ"] === operation &&
+    row._holdStatusBeforeSave === "Hold"
+  ) return row;
   return {
     ...row,
-    "TOTAL PAYMENT": amountForOperation(row["TOTAL PAYMENT"], operation),
+    "TOTAL PAYMENT": amount,
     "Nghiệp vụ": operation,
     _holdStatusBeforeSave: "Hold",
   };
@@ -195,6 +202,10 @@ function getReportMonth(row: HoldCarryRow): PayrollMonth | null {
 }
 
 function getArisingMonth(row: HoldCarryRow): PayrollMonth | null {
+  const sourceMonth = getDeductionsSourceMonth(
+    row["Sheet Source"], row.Note, getReportMonth(row)?.dot,
+  );
+  if (sourceMonth) return parsePayrollMonth(sourceMonth);
   const parsed = parsePayrollMonth(
     row["Tháng phát sinh"] || row["Trạng thái"] || row["Sheet Source"],
   );
@@ -282,11 +293,13 @@ export function collapseMergedHoldSourceRows({
   mergedRow,
   canonicalIndex,
   updatedRow,
+  scopedIdentityOf = getHoldScopedIdentity,
 }: {
   rows: HoldCarryRow[];
   mergedRow: HoldCarryRow;
   canonicalIndex: number;
   updatedRow: HoldCarryRow;
+  scopedIdentityOf?: (row: HoldCarryRow) => string;
 }): HoldCarryRow[] {
   const mergedIndexes = getMergedHoldOriginalIndexes(mergedRow).filter(
     (index) => index < rows.length,
@@ -295,11 +308,11 @@ export function collapseMergedHoldSourceRows({
   // Legacy/carried rows do not always retain _originalIndex. Fall back to the
   // report-scoped semantic identity so changing one displayed merged HOLD to
   // CANCEL/ADD physically removes every hidden duplicate from storage.
-  const scopedIdentity = getHoldScopedIdentity(mergedRow);
+  const scopedIdentity = scopedIdentityOf(mergedRow);
   const semanticDuplicateIndexes = scopedIdentity
     ? rows
         .map((sourceRow, index) =>
-          sourceRow && getHoldScopedIdentity(sourceRow) === scopedIdentity
+          sourceRow && scopedIdentityOf(sourceRow) === scopedIdentity
             ? index
             : -1,
         )
@@ -393,6 +406,46 @@ export function getHoldScopedIdentity(
   return `${reportMonth.dot}|${semanticIdentity}`;
 }
 
+interface HoldRowMetadata {
+  candidate: boolean;
+  canonicalRow: HoldCarryRow;
+  operation: HoldOperation;
+  reportMonth: PayrollMonth | null;
+  identity: string;
+  scopedIdentity: string;
+}
+
+function createHoldMetadataLookup() {
+  const cache = new WeakMap<HoldCarryRow, HoldRowMetadata>();
+  return (row: HoldCarryRow): HoldRowMetadata => {
+    const cached = cache.get(row);
+    if (cached) return cached;
+    const candidate = isHoldMergeCandidate(row);
+    const canonicalRow = candidate ? canonicalizeHoldTransactionRow(row) : row;
+    const reportMonth = getReportMonth(canonicalRow);
+    const identity = getHoldSemanticIdentity(canonicalRow);
+    const metadata = {
+      candidate, canonicalRow, reportMonth, identity,
+      operation: getHoldOperation(canonicalRow),
+      scopedIdentity: reportMonth && identity ? `${reportMonth.dot}|${identity}` : "",
+    };
+    cache.set(row, metadata);
+    cache.set(canonicalRow, metadata);
+    return metadata;
+  };
+}
+
+/** Reuse immutable-row metadata across edits without retaining old imports in memory. */
+export function createHoldTransactionReconciler() {
+  const metadataOf = createHoldMetadataLookup();
+  return {
+    reconcile: (rows: HoldCarryRow[]) => reconcileHoldTransactionRows(rows, metadataOf),
+    merge: (rows: HoldCarryRow[]) => mergeDuplicateHoldRows(rows, {}, metadataOf),
+    collapse: (options: Parameters<typeof collapseMergedHoldSourceRows>[0]) =>
+      collapseMergedHoldSourceRows({ ...options, scopedIdentityOf: row => metadataOf(row).scopedIdentity }),
+  };
+}
+
 /**
  * Merge a carried HOLD with the same HOLD imported from the report month's
  * source sheet. A duplicate requires an exact semantic match on arising month,
@@ -403,26 +456,30 @@ export function getHoldScopedIdentity(
 export function mergeDuplicateHoldRows(
   rows: HoldCarryRow[],
   options: { scopeByReportMonth?: boolean } = {},
+  metadataOf = createHoldMetadataLookup(),
 ): HoldCarryRow[] {
   const result: HoldCarryRow[] = [];
   const holdIndexes = new Map<string, number>();
 
   rows.forEach((row) => {
-    if (!row || !isHoldMergeCandidate(row)) {
+    if (!row) {
       result.push(row);
       return;
     }
-
-    const canonicalRow = canonicalizeHoldTransactionRow(row);
-
-    const semanticIdentity = getHoldSemanticIdentity(canonicalRow);
+    const metadata = metadataOf(row);
+    if (!metadata.candidate) {
+      result.push(row);
+      return;
+    }
+    const canonicalRow = metadata.canonicalRow;
+    const semanticIdentity = metadata.identity;
     if (!semanticIdentity) {
       result.push(canonicalRow);
       return;
     }
 
     const reportMonth = options.scopeByReportMonth
-      ? getReportMonth(canonicalRow)
+      ? metadata.reportMonth
       : null;
     const key = options.scopeByReportMonth
       ? `${reportMonth?.dot || "UNKNOWN"}|${semanticIdentity}`
@@ -475,19 +532,18 @@ export function mergeDuplicateHoldRows(
  */
 export function reconcileHoldTransactionRows(
   rows: HoldCarryRow[],
+  metadataOf = createHoldMetadataLookup(),
 ): HoldCarryRow[] {
   const mergedRows = mergeDuplicateHoldRows(rows, {
     scopeByReportMonth: true,
-  });
+  }, metadataOf);
   const resolvedMonthByIdentity = new Map<string, number>();
 
   mergedRows.forEach((row) => {
-    if (!row || !isHoldMergeCandidate(row)) return;
-    const operation = getHoldOperation(row);
+    if (!row) return;
+    const { candidate, operation, reportMonth, identity } = metadataOf(row);
+    if (!candidate) return;
     if (operation !== "Cancel" && operation !== "Add") return;
-
-    const reportMonth = getReportMonth(row);
-    const identity = getHoldSemanticIdentity(row);
     if (!reportMonth || !identity) return;
 
     const resolvedMonth = resolvedMonthByIdentity.get(identity);
@@ -497,10 +553,9 @@ export function reconcileHoldTransactionRows(
   });
 
   return mergedRows.filter((row) => {
-    if (!row || !isHoldMergeCandidate(row)) return true;
-    const operation = getHoldOperation(row);
-    const reportMonth = getReportMonth(row);
-    const identity = getHoldSemanticIdentity(row);
+    if (!row) return true;
+    const { candidate, operation, reportMonth, identity } = metadataOf(row);
+    if (!candidate) return true;
     if (!reportMonth || !identity) return true;
 
     const resolvedMonth = resolvedMonthByIdentity.get(identity);

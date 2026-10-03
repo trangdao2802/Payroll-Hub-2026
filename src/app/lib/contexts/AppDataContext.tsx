@@ -14,16 +14,15 @@ import { toast } from "sonner";
 import { AppData } from "../../types";
 import { INITIAL_APP_DATA } from "../../constants/initial-data";
 import { trackTableOriginals, type OriginalField } from '../utils/table-originals';
-import { parseMoneyToNumber, removeVietnameseTones, formatIdNumber } from "../utils/data-utils";
-import { resolveL07BuFromAeCode } from "../utils/center-utils";
+import { parseMoneyToNumber } from "../utils/data-utils";
 import { fillMissingHoldBankAccounts } from "../utils/bank-account-resolver";
 import { dedupeTimesheetRosterRowsInChunks } from "../utils/timesheet-roster-utils";
 import { applyExtraSummerInstructorBonus } from "../utils/gross-pay";
 import { normalizeGrossPaySpecialCenters } from "../utils/master-special-centers";
 import { reconcileHoldTransactionRows } from "../utils/hold-carryover";
+import { createDeductionsRowProjector, getDeductionsHeaders } from "../utils/deductions-view";
 import {
   hasRequiredDeductionsFields,
-  selectValidDeductionsRowsWithSourceIndexes,
 } from "../utils/deductions-row-validation";
 import {
   detectAndRecordAppDataChanges,
@@ -764,7 +763,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Memoized context values — only re-create when actual data changes ──
-  const { Hold_AE, Sheet1_AE, globalMonth } = state.present;
+  const { Hold_AE, globalMonth } = state.present;
 
   // Persist missing Hold AE bank accounts as soon as the matching source data
   // is available. This keeps the lookup result across report-month changes and
@@ -806,337 +805,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     state.present.globalMonth,
   ]);
 
+  const projectDeductionsRows = useMemo(
+    () => createDeductionsRowProjector(globalMonth || "03.2026"),
+    [globalMonth],
+  );
+  const computedHoldHeaders = useMemo(
+    () => getDeductionsHeaders(Hold_AE?.headers || []),
+    [Hold_AE?.headers],
+  );
   const computedHoldAE = useMemo(() => {
-    if (!needsHoldDerivedData) return Hold_AE;
-    if (!Hold_AE || !Hold_AE.data) return Hold_AE;
-
-    const currentPeriodParts = (globalMonth || "03.2026").split(".");
-    const currentMonthNum = parseInt(currentPeriodParts[0], 10) || 3;
-    const currentYearNum = parseInt(currentPeriodParts[1], 10) || 2026;
-    const currentTotal = currentYearNum * 12 + currentMonthNum;
-
-    // First compute userLedgers
-    const ledgers: Record<
-      string,
-      {
-        totalHold: number;
-        totalAdd: number;
-      }
-    > = {};
-
-    const idToSheet1: Record<string, string> = {};
-    const nameToSheet1: Record<string, string> = {};
-    const accToSheet1: Record<string, string> = {};
-
-    const sheet1Rows = Sheet1_AE?.data || [];
-    sheet1Rows.forEach((row) => {
-      const id = formatIdNumber(row["ID Number"]);
-      const name = removeVietnameseTones(
-        String(row["Full name"] || ""),
-      ).toUpperCase();
-      const acc = String(row["Bank Account Number"] || "").trim();
-      let biz = row["Business"] || "Unknown";
-      if (biz === "AHN_HP") biz = "AHP";
-      if (id) idToSheet1[id] = biz;
-      if (name) nameToSheet1[name] = biz;
-      if (acc) accToSheet1[acc] = biz;
-    });
-
-    const holdRows = selectValidDeductionsRowsWithSourceIndexes(
-      Hold_AE?.data || [],
-    );
-    holdRows.forEach((row, index) => {
-      if (!row) return;
-      const id = formatIdNumber(row["ID Number"]);
-      const name = String(row["Full name"] || "").trim();
-      const normalizedName = removeVietnameseTones(name).toUpperCase();
-      const acc = String(row["Bank Account Number"] || "").trim();
-      const key = id || normalizedName || `idx-${index}`;
-
-      let bu = row["BU"] || row["Business"] || "";
-      if (bu) bu = String(bu).trim().toUpperCase();
-      if (bu === "AHN_HP") bu = "AHP";
-
-      if (!bu || bu === "UNKNOWN") bu = idToSheet1[id];
-      if ((!bu || bu === "UNKNOWN") && acc) bu = accToSheet1[acc];
-      if ((!bu || bu === "UNKNOWN") && normalizedName)
-        bu = nameToSheet1[normalizedName];
-      if (!bu || bu === "UNKNOWN") bu = "AHN";
-
-      const val = parseMoneyToNumber(row["TOTAL PAYMENT"] || 0);
-      const absVal = Math.abs(val);
-
-      const rawSource = String(row["Sheet Source"] || "");
-      const trangThaiVal =
-        row["Tháng phát sinh"] !== undefined
-          ? row["Tháng phát sinh"]
-          : row["Trạng thái"] !== undefined
-          ? row["Trạng thái"]
-          : rawSource;
-      const upNvu = String(row["Nghiệp vụ"] || "").toUpperCase();
-      const label =
-        String(trangThaiVal || "").toUpperCase() || (val >= 0 ? "ADD" : "HOLD");
-      const isHold = label.includes("HOLD") || upNvu.includes("HOLD");
-      const isCancel = label.includes("CANCEL") || upNvu.includes("CANCEL");
-      const isAdd = label.includes("ADD") || upNvu.includes("ADD") || (!isHold && !isCancel && val > 0);
-      
-      // Determine month of the row
-      let itemMonthNum = currentMonthNum;
-      let itemYearNum = currentYearNum;
-      const originMonthStr = String(row["Tháng"] || row["_fileMonth"] || row["Tháng báo cáo"] || "").trim();
-      
-      const matchMonthYear = originMonthStr.match(/(?:THÁNG|THANG|T)?\s*(\d{1,2})[./\- ]\s*(\d{4})/i);
-      const matchMonthDotYear = originMonthStr.match(/(\d{2})\.(\d{4})/);
-      if (matchMonthYear) {
-        itemMonthNum = parseInt(matchMonthYear[1], 10);
-        itemYearNum = parseInt(matchMonthYear[2], 10);
-      } else if (matchMonthDotYear) {
-        itemMonthNum = parseInt(matchMonthDotYear[1], 10);
-        itemYearNum = parseInt(matchMonthDotYear[2], 10);
-      } else {
-        const originMatch = originMonthStr.match(/(\d+)/);
-        if (originMatch) {
-            itemMonthNum = parseInt(originMatch[0], 10);
-        }
-        if (itemMonthNum === 11 || itemMonthNum === 12) {
-          itemYearNum = currentYearNum === 2025 ? 2025 : (currentYearNum === 2026 ? 2025 : currentYearNum);
-        } else if (itemMonthNum > currentMonthNum && (currentYearNum === 2025 || currentYearNum === 2026)) {
-          itemYearNum = currentYearNum - 1;
-        } else {
-          itemYearNum = currentYearNum;
-        }
-      }
-      const itemTotal = itemYearNum * 12 + itemMonthNum;
-      const isPastMonthHold = isHold && (itemTotal < currentTotal);
-      const effectiveAbsVal = isPastMonthHold ? 0 : absVal;
-
-      if (!ledgers[key]) {
-        ledgers[key] = {
-          totalHold: 0,
-          totalAdd: 0,
-        };
-      }
-
-      if (isHold) {
-        ledgers[key].totalHold += effectiveAbsVal;
-      } else if (isAdd) {
-        ledgers[key].totalAdd += absVal;
-      }
-    });
-
-    // Now construct computed rows with "Tháng báo cáo", "Trạng thái", "Nghiệp vụ"
-
-    const computedData = holdRows.map((row) => {
-      if (!row) return null as any;
-      const id = formatIdNumber(row["ID Number"]);
-      const name = String(row["Full name"] || "").trim();
-      const normalizedName = removeVietnameseTones(name).toUpperCase();
-
-      const val = parseMoneyToNumber(row["TOTAL PAYMENT"] || 0);
-      const rawSource = String(row["Sheet Source"] || "");
-
-      // 1. Determine "Tháng báo cáo" (Reporting Month) strictly based on the "Tháng" column on the master file from AE.
-      // "viết lại logic của Cột Tháng báo cáo trên bảng Master AE Hold => DỰA VÀO CỘT THÁNG TRÊN BẢNG MASTER_UPLOAD FILE FROM AE"
-      let originMonthNum = currentMonthNum;
-      let originYearNum = currentYearNum;
-
-      const originMonthStr = String(
-        row["Tháng"] || row["_fileMonth"] || row["Tháng báo cáo"] || "",
-      ).trim();
-
-      const matchMonthYear = originMonthStr.match(
-        /(?:THÁNG|THANG|T)?\s*(\d{1,2})[./\- ]\s*(\d{4})/i,
-      );
-      const matchMonthDotYear = originMonthStr.match(/(\d{2})\.(\d{4})/);
-      if (matchMonthYear) {
-        originMonthNum = parseInt(matchMonthYear[1], 10);
-        originYearNum = parseInt(matchMonthYear[2], 10);
-      } else if (matchMonthDotYear) {
-        originMonthNum = parseInt(matchMonthDotYear[1], 10);
-        originYearNum = parseInt(matchMonthDotYear[2], 10);
-      } else {
-        const originMatch = originMonthStr.match(/(\d+)/);
-        if (originMatch) {
-          originMonthNum = parseInt(originMatch[0], 10);
-        }
-        if (originMonthNum === 11 || originMonthNum === 12) {
-          // Dynamically respect selected report month; changed hardcoded check from 2026 to 2025
-          originYearNum = currentYearNum === 2025 ? 2025 : (currentYearNum === 2026 ? 2025 : currentYearNum);
-        } else if (
-          originMonthNum > currentMonthNum &&
-          (currentYearNum === 2025 || currentYearNum === 2026)
-        ) {
-          originYearNum = currentYearNum - 1;
-        } else {
-          originYearNum = currentYearNum;
-        }
-      }
-      const finalReportingMonthStr = `${String(originMonthNum).padStart(2, "0")}.${originYearNum}`;
-
-      // 2. Determine "khoản đó của tháng nào" (item month) based on the "Sheet Source" column containing the month.
-      // "còn khoản đó của tháng nào thì dựa vào cột sheet source chứa tháng"
-      let itemMonthNum = originMonthNum;
-      let itemYearNum = originYearNum;
-
-      const rawTrangThaiOrPhatSinh = String(row["Tháng phát sinh"] || row["Trạng thái"] || "").trim().toUpperCase();
-      const rawSourceUpper = rawSource.toUpperCase();
-      const isBonusSummer = rawSourceUpper.includes("BONUS") && (
-        rawSourceUpper.includes("SUMMER") || 
-        rawSourceUpper.includes("INSTRUCTOR") || 
-        rawSourceUpper.includes("INTROSTION")
-      );
-
-      if (isBonusSummer) {
-        // Force Tháng phát sinh to be the reporting month (Tháng báo cáo)
-        itemMonthNum = originMonthNum;
-        itemYearNum = originYearNum;
-      } else {
-        // Check if already is custom mm.yyyy
-        const customMmYyyyMatch = rawTrangThaiOrPhatSinh.match(/^(\d{2})\.(\d{4})$/);
-        if (customMmYyyyMatch) {
-          itemMonthNum = parseInt(customMmYyyyMatch[1], 10);
-          itemYearNum = parseInt(customMmYyyyMatch[2], 10);
-        } else {
-          const ssMatch =
-            rawSource.match(/T[HÁNG]*\s*(\d+)/i) ||
-            String(row["Note"] || "").match(/T[HÁNG]*\s*(\d+)/i) ||
-            rawTrangThaiOrPhatSinh.match(/T[HÁNG]*\s*(\d+)/i);
-          if (ssMatch) {
-            itemMonthNum = parseInt(ssMatch[1], 10);
-          }
-          if (itemMonthNum > originMonthNum && originMonthNum <= 6 && (originYearNum === 2025 || originYearNum === 2026)) {
-            itemYearNum = originYearNum - 1;
-          }
-        }
-      }
-
-      const computedThangPhatSinh = `${String(itemMonthNum).padStart(2, "0")}.${itemYearNum}`;
-
-      // Determine 'Nghiệp vụ' operation type
-      let type = "Add";
-      const upNvu = String(row["Nghiệp vụ"] || "")
-        .trim()
-        .toUpperCase();
-      const rawTrangThai = String(row["Tháng phát sinh"] || row["Trạng thái"] || "")
-        .trim()
-        .toUpperCase();
-      if (upNvu.includes("HOLD") || rawTrangThai.includes("HOLD")) {
-        type = "Hold";
-      } else if (upNvu.includes("CANCEL") || rawTrangThai.includes("CANCEL")) {
-        type = "Cancel";
-      } else if (upNvu.includes("ADD") || rawTrangThai.includes("ADD")) {
-        type = "Add";
-      } else if (upNvu.includes("BONUS") || upNvu.includes("⏩") || upNvu.includes("⏯")) {
-        type = "⏩";
-      } else {
-        type = val >= 0 ? "Add" : "Hold";
-      }
-
-      let tinhTrangThanhToan = "";
-      if (type.toUpperCase() === "HOLD") {
-        tinhTrangThanhToan = `Pending từ tháng ${computedThangPhatSinh}`;
-      } else if (type.toUpperCase() === "ADD" || type === "⏩" || type === "⏯") {
-        tinhTrangThanhToan = `Đã thanh toán tại tháng ${finalReportingMonthStr}`;
-      } else if (type.toUpperCase() === "CANCEL") {
-        tinhTrangThanhToan = `Cancel từ tháng ${finalReportingMonthStr}`;
-      }
-
-      const isPastMonthHoldOrCancel =
-        (type.toUpperCase() === "HOLD" || type.toUpperCase() === "CANCEL") &&
-        (itemYearNum * 12 + itemMonthNum < originYearNum * 12 + originMonthNum);
-
-      let l07 = String(row["L07"] || row["Mã ae"] || "").trim();
-      let bu = String(row["BU"] || "").trim();
-      const resolved = resolveL07BuFromAeCode(l07);
-      if (resolved) {
-        l07 = resolved.l07;
-        if (!bu) bu = resolved.bu;
-      }
-
-      return {
-        ...row,
-        "L07": l07,
-        "BU": bu,
-        _originalIndex: row._originalIndex,
-        _originalTinhTrangThanhToan: row["Tình trạng thanh toán"] !== undefined ? String(row["Tình trạng thanh toán"]) : "",
-        "Tháng báo cáo": finalReportingMonthStr,
-        "Tháng phát sinh": computedThangPhatSinh,
-        "Trạng thái": computedThangPhatSinh,
-        "Tình trạng thanh toán": tinhTrangThanhToan,
-        "Nghiệp vụ": type,
-        Note: row["Note"] !== undefined ? String(row["Note"]) : "",
-        "Diễn giải": row["Diễn giải"] !== undefined ? String(row["Diễn giải"]) : "",
-        _dimmed: isPastMonthHoldOrCancel,
-        _isPastMonthHoldOrCancel: isPastMonthHoldOrCancel,
-      };
-    });
-
-    // Ensure headers include our target computed columns and are in the correct order
-    let newHeaders = [...Hold_AE.headers];
-    newHeaders = newHeaders.filter(
-      (h) => h !== "Mã GD" && h !== "Trạng thái công nợ",
-    );
-    const targetHeaders = [
-      "Tháng báo cáo",
-      "Nghiệp vụ",
-      "Tháng phát sinh",
-      "Tình trạng thanh toán",
-    ];
-    targetHeaders.forEach((th) => {
-      if (!newHeaders.includes(th)) {
-        newHeaders.push(th);
-      }
-    });
-
-    const totalPaymentIdx = newHeaders.indexOf("TOTAL PAYMENT");
-    let baseHeaders: string[] = [];
-    if (totalPaymentIdx !== -1) {
-      baseHeaders = newHeaders.slice(0, totalPaymentIdx + 1);
-    } else {
-      baseHeaders = [
-        "No.",
-        "Tháng báo cáo",
-        "BU",
-        "L07",
-        "ID Number",
-        "Full name",
-        "Bank Account Number",
-        "TAX CODE",
-        "Contract No",
-        "TOTAL PAYMENT",
-      ];
-    }
-
-    const reorderedHeaders = [
-      ...baseHeaders.filter(
-        (h) =>
-          h !== "TÊN FILE" &&
-          h !== "Sheet Source" &&
-          h !== "Note" &&
-          h !== "Nghiệp vụ" &&
-          h !== "Trạng thái" &&
-          h !== "Tháng phát sinh" &&
-          h !== "Tình trạng thanh toán" &&
-          h !== "Mã ae",
-      ),
-      "Sheet Source",
-      "Nghiệp vụ",
-      "Tháng phát sinh",
-      "Tình trạng thanh toán",
-      "Note",
-    ];
-
+    if (!needsHoldDerivedData || !Hold_AE?.data) return Hold_AE;
     return {
       ...Hold_AE,
-      headers: reorderedHeaders,
-      data: computedData.filter(Boolean),
+      headers: computedHoldHeaders,
+      data: projectDeductionsRows(Hold_AE.data),
     };
-  }, [
-    Hold_AE,
-    Sheet1_AE?.data,
-    globalMonth,
-    needsHoldDerivedData,
-  ]);
+  }, [Hold_AE, computedHoldHeaders, projectDeductionsRows, needsHoldDerivedData]);
 
   const computedPresent = useMemo(() => {
     if (!state.present.Hold_AE || state.present.Hold_AE === computedHoldAE) {
