@@ -1574,6 +1574,49 @@ export async function processMasterAEData(
         row["No"] = idx + 1;
       });
 
+      // Bank North is also month-scoped source data for Batch Payment.
+      // Preserve untouched months exactly like Gross Pay instead of replacing
+      // the whole table every time a newer AE Final workbook is processed.
+      const existingBankData = (prev.Bank_North_AE?.data || []).filter((row: any) =>
+        !targets.some((target) =>
+          row["TÊN FILE"] === target.name &&
+          normalizeMonth(row["Tháng báo cáo"] || row["_fileMonth"]) ===
+            normalizeMonth(target.month || currentMonth),
+        ),
+      );
+      const bankMap = new Map<string, any>();
+      const getBankKey = (r: any) => {
+        if (!r) return "";
+        const id = String(r["ID Number"] || "").trim().toUpperCase();
+        const fname = String(r["Full name"] || "").trim().toUpperCase();
+        const acc = String(r["Bank Account Number"] || "").trim();
+        const month = normalizeMonth(
+          r["Tháng báo cáo"] || r["_fileMonth"] || currentMonth,
+        );
+        const total = Math.round(parseMoneyToNumber(r["TOTAL PAYMENT"] || 0));
+        return `${id}|${fname}|${acc}|${month}|${total}`;
+      };
+
+      [...existingBankData, ...finalBankData].forEach((row) => {
+        if (!row) return;
+        const month = normalizeMonth(
+          row["Tháng báo cáo"] || row["_fileMonth"] || currentMonth,
+        );
+        const normalizedRow = {
+          ...row,
+          _fileMonth: month,
+          "Tháng báo cáo": month,
+        };
+        const key = getBankKey(normalizedRow);
+        if (key) bankMap.set(key, normalizedRow);
+      });
+
+      const mergedBankData = Array.from(bankMap.values());
+      mergedBankData.forEach((row, idx) => {
+        row["No."] = idx + 1;
+        row["No"] = idx + 1;
+      });
+
       return {
         ...prev,
         Ae_Global_Inputs: prev.Ae_Global_Inputs.map((row) => ({
@@ -1596,7 +1639,7 @@ export async function processMasterAEData(
             "LOẠI CK",
             "Payment details",
           ],
-          data: finalBankData,
+          data: mergedBankData,
         },
         Sheet1_AE: { headers: sheet1Headers, data: mergedSheet1Data },
         SoSanh_AE: {

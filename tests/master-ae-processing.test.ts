@@ -109,3 +109,47 @@ test("Gross Pay import keeps equal Cambridge and Contest payments distinct and m
   assert.equal(cache.groupedData.AHN["JOB FAIR"]["08.2026"].LXO, 120000);
   assert.equal(cache.groupedData.AHP.CAMBRIDGE["08.2026"].LXO, 120000);
 });
+
+test("Master import preserves historical Bank North months for Batch Payment", async (t) => {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ["No", "ID Number", "Full name", "Center", "Bank Account Number", "TOTAL PAYMENT", "Payment details"],
+    [1, "001090627040", "Nguyen Van A", "Ocean Park", "0012345678", 120000, "Salary 08.2026"],
+  ]), "Bank North AE");
+  const file = new File([XLSX.write(workbook, { bookType: "xlsx", type: "array" })], "NORTH 08.2026.xlsx");
+  const harness = importHarness(t, file);
+
+  harness.context.appData.Bank_North_AE = {
+    ...harness.context.appData.Bank_North_AE,
+    data: [{
+      No: 1,
+      "ID Number": "OLD-07",
+      "Full name": "NGUYEN VAN JULY",
+      L07: "HN0027.OPK",
+      Business: "AHN",
+      "Bank Account Number": "0099001100",
+      "TOTAL PAYMENT": 90000,
+      "Payment details": "Salary 07.2026",
+      "TÊN FILE": "NORTH 07.2026.xlsx",
+      _fileMonth: "07.2026",
+      "Tháng báo cáo": "07.2026",
+    }],
+  };
+
+  await processMasterAEData(harness.context);
+
+  const bankRows = harness.data().Bank_North_AE.data;
+  assert.equal(bankRows.length, 2);
+  assert.deepEqual(
+    bankRows.map((row) => row["Tháng báo cáo"]).sort(),
+    ["07.2026", "08.2026"],
+  );
+  assert.equal(
+    bankRows.find((row) => row["Tháng báo cáo"] === "07.2026")?.["ID Number"],
+    "OLD-07",
+  );
+  assert.equal(
+    bankRows.find((row) => row["Tháng báo cáo"] === "08.2026")?.["ID Number"],
+    "001090627040",
+  );
+});

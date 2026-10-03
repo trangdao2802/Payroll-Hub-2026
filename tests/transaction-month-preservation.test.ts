@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { INITIAL_APP_DATA } from '../src/app/constants/initial-data';
-import { syncReportingMonthReconciliation } from '../src/app/lib/utils/reconciliation-sync';
+import { cacheActiveTransactionMonth, syncReportingMonthReconciliation } from '../src/app/lib/utils/reconciliation-sync';
 import { applyTransactionDraftCellEdit, saveTransactionDraft } from '../src/app/lib/utils/transaction-draft';
 import { clearMasterPageData, clearMasterTableData } from '../src/app/lib/utils/data-clear-scopes';
 import {
@@ -116,4 +116,54 @@ test('verified history sync updates every matching local month cache and the act
   assert.equal(synced.TransactionActivity?.lastAction, 'saved');
   const returned = syncReportingMonthReconciliation({...synced, globalMonth: '08.2026'}, '08.2026');
   assert.equal(returned.BankExport.data[0]['Document ID'], 'SYNCED-AUG-ID');
+});
+
+test('generated Batch Payment is cached immediately for its reporting month', () => {
+  const app = structuredClone(INITIAL_APP_DATA);
+  app.globalMonth = '08.2026';
+  app.BankExport.data = [{
+    'Tháng báo cáo': '08.2026',
+    'Document ID': 'ID-08',
+    'Beneficiary Account No.': '0012345678',
+    'Payment Amount': 100_000,
+  }];
+  app.TransactionActivity = {
+    generatedAt: '2026-09-01T00:00:00.000Z',
+    editCount: 0,
+    saveVersion: 0,
+    lastAction: 'generated',
+  };
+
+  const cached = cacheActiveTransactionMonth(app);
+  assert.equal(cached.TransactionMonthCache?.activePeriod, '2026-08');
+  assert.deepEqual(
+    cached.TransactionMonthCache?.months['2026-08'].table.data,
+    app.BankExport.data,
+  );
+});
+
+test('cached generated historical Batch Payment survives when Bank North source month is missing', () => {
+  const app = structuredClone(INITIAL_APP_DATA);
+  app.Bank_North_AE.data = [{
+    'Tháng báo cáo': '08.2026',
+    'ID Number': 'ID-08',
+    'Full name': 'NGUYEN VAN A',
+    'Bank Account Number': '0012345678',
+    'TOTAL PAYMENT': 100_000,
+  }];
+
+  const generated = syncReportingMonthReconciliation(app, '08.2026');
+  assert.equal(generated.BankExport.data.length, 1);
+
+  const sourceLost = {
+    ...generated,
+    Bank_North_AE: { ...generated.Bank_North_AE, data: [] },
+  };
+  const reopened = syncReportingMonthReconciliation(sourceLost, '08.2026');
+
+  assert.deepEqual(reopened.BankExport.data, generated.BankExport.data);
+  assert.deepEqual(
+    reopened.TransactionMonthCache?.months['2026-08'].table.data,
+    generated.BankExport.data,
+  );
 });

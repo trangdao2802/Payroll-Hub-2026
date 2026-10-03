@@ -227,6 +227,26 @@ export function buildBankExportRowsForMonth(
   });
 }
 
+export function cacheActiveTransactionMonth(appData: AppData): AppData {
+  const normalizedMonth = parseMonthPeriod(appData.globalMonth || "");
+  if (!normalizedMonth) return appData;
+
+  const period = normalizedMonth.key;
+  return {
+    ...appData,
+    TransactionMonthCache: {
+      activePeriod: period,
+      months: {
+        ...(appData.TransactionMonthCache?.months || {}),
+        [period]: {
+          table: appData.BankExport,
+          activity: appData.TransactionActivity,
+        },
+      },
+    },
+  };
+}
+
 export function syncReportingMonthReconciliation(
   appData: AppData,
   reportMonth: string,
@@ -260,11 +280,20 @@ export function syncReportingMonthReconciliation(
     };
   }
   const existing = months[period];
-  // Only untouched generated data may be refreshed from Bank AE. Saved edits
-  // and legacy snapshots without activity metadata remain authoritative.
-  const keepExisting = existing && existing.activity?.lastAction !== 'generated';
-  const table = keepExisting ? existing.table : {...currentTable, data: buildBankExportRowsForMonth(appData, month)};
-  const activity = keepExisting ? existing.activity : markTransactionGenerated(appData, generatedAt);
+  const refreshedRows = buildBankExportRowsForMonth(appData, month);
+  // Only untouched generated data may be refreshed from Bank AE, and only
+  // when that month still exists in the source. Never erase a cached historical
+  // Batch Payment month merely because Bank North was reloaded without it.
+  const keepExisting = Boolean(existing) && (
+    existing?.activity?.lastAction !== "generated" ||
+    refreshedRows.length === 0
+  );
+  const table = keepExisting && existing
+    ? existing.table
+    : { ...currentTable, data: refreshedRows };
+  const activity = keepExisting && existing
+    ? existing.activity
+    : markTransactionGenerated(appData, generatedAt);
 
   return {
     ...appData,

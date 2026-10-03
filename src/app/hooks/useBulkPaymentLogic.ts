@@ -22,7 +22,12 @@ import {
   saveTransactionDraft,
   type TransactionDraft,
 } from "../lib/utils/transaction-draft";
-import { calculateReconciliationTotals, getDeductionContribution, getDeductionReportEntry } from "../lib/utils/reconciliation-sync";
+import {
+  cacheActiveTransactionMonth,
+  calculateReconciliationTotals,
+  getDeductionContribution,
+  getDeductionReportEntry,
+} from "../lib/utils/reconciliation-sync";
 import {
   downloadTransactionBankExport,
 } from "../lib/utils/excel-export";
@@ -872,18 +877,21 @@ export function useBulkPaymentLogic() {
         appData,
         currentMonthVal,
       );
-      updateAppData((prev) => ({
-        ...prev,
-        BankExport: {
-          ...prev.BankExport,
-          data: data,
-        },
-        ReconciliationByMonth: {
-          ...(prev.ReconciliationByMonth || {}),
-          [currentMonthVal]: { ...reconciliationTotals, generatedAt },
-        },
-        TransactionActivity: markTransactionGenerated(prev, generatedAt),
-      }), true, true, ["BankExport"]);
+      updateAppData((prev) => {
+        const next = {
+          ...prev,
+          BankExport: {
+            ...prev.BankExport,
+            data: data,
+          },
+          ReconciliationByMonth: {
+            ...(prev.ReconciliationByMonth || {}),
+            [currentMonthVal]: { ...reconciliationTotals, generatedAt },
+          },
+          TransactionActivity: markTransactionGenerated(prev, generatedAt),
+        };
+        return cacheActiveTransactionMonth(next);
+      }, true, true, ["BankExport"]);
 
       const reportTotal = data.reduce((sum, r) => sum + r["Payment Amount"], 0);
       const isTotalMatch = Math.abs(reportTotal - bankNorthTotal) < 1;
@@ -1064,7 +1072,7 @@ export function useBulkPaymentLogic() {
         ...row,
         "Payment Serial Number": idx + 1,
       }));
-      return {
+      return cacheActiveTransactionMonth({
         ...prev,
         BankExport: { ...prev.BankExport, data: updatedData },
         TransactionActivity: includesDraft
@@ -1074,7 +1082,7 @@ export function useBulkPaymentLogic() {
               activeTransactionDraft!.editCount + 1,
             )
           : markTransactionSaved(prev),
-      };
+      });
     });
     setTransactionDraft(null);
   }, [activeTransactionDraft, updateAppData]);
@@ -1110,7 +1118,7 @@ export function useBulkPaymentLogic() {
         ...row,
         "Payment Serial Number": idx + 1,
       }));
-      return {
+      return cacheActiveTransactionMonth({
         ...prev,
         BankExport: { ...prev.BankExport, data: updatedData },
         TransactionActivity: includesDraft
@@ -1120,7 +1128,7 @@ export function useBulkPaymentLogic() {
               activeTransactionDraft!.editCount + 1,
             )
           : markTransactionSaved(prev),
-      };
+      });
     });
     setTransactionDraft(null);
   }, [activeTransactionDraft, updateAppData]);

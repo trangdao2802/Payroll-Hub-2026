@@ -1,5 +1,6 @@
 import type { AppData } from "../../types";
 import { commitTransactionEdits } from "./transaction-activity";
+import { cacheActiveTransactionMonth } from "./reconciliation-sync";
 import type { TransactionRow } from "./transaction-history";
 import { editTransactionField, protectSavedTransactionIdentity } from './transaction-saved-fields';
 
@@ -62,7 +63,7 @@ export function saveTransactionDraft(
 ): AppData | null {
   if (appData.BankExport.data !== draft.sourceRows) return null;
 
-  return {
+  return cacheActiveTransactionMonth({
     ...appData,
     BankExport: { ...appData.BankExport, data: draft.rows.map((row, index) =>
       row === draft.sourceRows[index] ? row : protectSavedTransactionIdentity(row)) },
@@ -71,5 +72,5 @@ export function saveTransactionDraft(
       savedAt,
       draft.editCount,
     ),
-  };
+  });
 }
