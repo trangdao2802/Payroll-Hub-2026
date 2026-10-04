@@ -57,6 +57,7 @@ async function loadDynamicSupabaseConfig() {
     const data = await response.json();
     if (isValidSupabaseConfig(data)) {
       window.__SUPABASE_CONFIG__ = data;
+      try { localStorage.setItem('payroll_supabase_public_config', JSON.stringify(data)); } catch { /* Storage can be unavailable. */ }
     }
   } catch (err) {
     if (!(err instanceof DOMException && err.name === "AbortError")) {
@@ -75,8 +76,12 @@ async function start() {
   if (isValidSupabaseConfig(staticSupabaseConfig)) {
     window.__SUPABASE_CONFIG__ = staticSupabaseConfig;
   } else {
-    if (recovery) await loadDynamicSupabaseConfig();
-    else void loadDynamicSupabaseConfig();
+    try {
+      const cached = JSON.parse(localStorage.getItem('payroll_supabase_public_config') || 'null');
+      if (cached && isValidSupabaseConfig(cached)) window.__SUPABASE_CONFIG__ = cached;
+    } catch { /* Public configuration cache is optional. */ }
+    // Resolve configuration before Auth mounts so saved sessions work on every machine.
+    await loadDynamicSupabaseConfig();
   }
 
   if (recovery) {

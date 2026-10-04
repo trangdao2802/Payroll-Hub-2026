@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { RouterProvider } from "react-router";
 import { router } from "./routes";
+import { CloudWorkspaceProvider } from "./lib/contexts/CloudWorkspaceContext";
 import { AppDataProvider } from "./lib/contexts/AppDataContext";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { Toaster, toast } from "sonner";
@@ -126,10 +127,12 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppDataProvider>
+        <CloudWorkspaceProvider>
         <LoadingWrapper>
           <RouterProvider router={router} />
         </LoadingWrapper>
         <KeyboardShortcutsModal />
+        </CloudWorkspaceProvider>
         <Toaster position="bottom-right" richColors visibleToasts={1} duration={2000} />
       </AppDataProvider>
     </ErrorBoundary>

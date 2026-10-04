@@ -9,3 +9,6 @@ dist
 dist-ssr
 *.log
 .eslintcache
+
+# Supabase CLI local cache
+supabase/.temp/

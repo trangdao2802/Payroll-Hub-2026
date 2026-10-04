@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Link, useLocation } from "react-router";
+import { CloudSyncButton, useCloudWorkspace } from "../../lib/contexts/CloudWorkspaceContext";
 import { DataChangeHistoryToggle } from "../DataChangeHistoryToggle";
 import {
   CircleDollarSign,
@@ -81,6 +82,7 @@ interface NavbarProps {
 
 export function Navbar({ onOpenSettings }: NavbarProps) {
   const location = useLocation();
+  const cloud = useCloudWorkspace();
   const { appData, updateAppData } = useAppData();
   const [timesheetActiveTabId, setTimesheetActiveTabId] = useState("employee");
   const [activeTabLabel, setActiveTabLabel] = useState(() => {
@@ -170,10 +172,15 @@ export function Navbar({ onOpenSettings }: NavbarProps) {
     if (lastAutoSyncedMonthRef.current === currentMonth) return;
 
     lastAutoSyncedMonthRef.current = currentMonth;
+    const [month, year] = currentMonth.split('.');
+    const period = `${year}-${month?.padStart(2, '0')}`;
+    // A cloud pull already includes the complete month. Regenerating it on this
+    // machine would manufacture new timestamps and a false cross-device conflict.
+    if (cloud?.authenticated && appData.TransactionMonthCache?.activePeriod === period && appData.ReconciliationByMonth?.[currentMonth]) return;
     updateAppData((prev) =>
       syncReportingMonthReconciliation(prev, currentMonth),
     );
-  }, [bankSourceRowCount, currentMonth, shouldAutoSyncReconciliation, updateAppData]);
+  }, [bankSourceRowCount, currentMonth, shouldAutoSyncReconciliation, updateAppData, cloud?.authenticated, appData.TransactionMonthCache?.activePeriod, appData.ReconciliationByMonth]);
 
   return (
     <header 
@@ -303,6 +310,7 @@ export function Navbar({ onOpenSettings }: NavbarProps) {
               )}
 
               {/* Recent Data Changes History & Integrated Restore Copy Toggle */}
+              <CloudSyncButton />
               <DataChangeHistoryToggle />
           </div>
 

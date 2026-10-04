@@ -63,9 +63,12 @@ const getSplitStorageKey = (field: keyof AppData) =>
 interface AppDataCtx {
   appData: AppData;
   isLoading: boolean;
+  rawAppData: AppData;
+  isStorageHydrating: boolean;
 }
 
 interface AppActionsCtx {
+  applyCloudData: (updater: (data: AppData) => AppData) => void;
   updateAppData: (
     updater: ((prev: AppData) => AppData) | Partial<AppData>,
     saveToHistory?: boolean,
@@ -832,13 +835,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     };
   }, [state.present, computedHoldAE]);
 
+  const applyCloudData = useCallback((updater: (data: AppData) => AppData) => {
+    immediatePersistRequestedRef.current = true;
+    setState(prev => ({ past: [], present: updater(prev.present), future: [] }));
+  }, []);
+
   const dataValue = useMemo<AppDataCtx>(
-    () => ({ appData: computedPresent, isLoading }),
-    [computedPresent, isLoading],
+    () => ({ appData: computedPresent, rawAppData: state.present, isLoading, isStorageHydrating }),
+    [computedPresent, state.present, isLoading, isStorageHydrating],
   );
 
   const actionsValue = useMemo<AppActionsCtx>(
     () => ({
+      applyCloudData,
       updateAppData,
       undo,
       redo,
@@ -847,6 +856,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       isSyncing,
     }),
     [
+      applyCloudData,
       updateAppData,
       undo,
       redo,
